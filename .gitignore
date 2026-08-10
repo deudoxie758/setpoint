@@ -1,0 +1,14 @@
+# Personal interview-prep notes — never shared publicly
+CLAUDE.md
+DECISIONS.md
+
+# Node
+node_modules/
+.env
+.env.local
+dist/
+build/
+.next/
+
+# OS
+.DS_Store

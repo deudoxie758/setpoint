@@ -1,0 +1,74 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourceType {
+  LINK
+  UPLOAD
+}
+
+enum Skill {
+  SERVE
+  ACE
+  SPIKE
+  BLOCK
+  DIG
+  SET
+  ASSIST
+}
+
+enum Outcome {
+  POINT_WON
+  POINT_LOST
+  NO_POINT
+}
+
+model Player {
+  id             String   @id @default(cuid())
+  name           String
+  position       String?
+  graduationYear Int?
+  clips          Clip[]
+  createdAt      DateTime @default(now())
+}
+
+model Clip {
+  id            String         @id @default(cuid())
+  title         String
+  sourceType    SourceType
+  url           String
+  playerId      String
+  player        Player         @relation(fields: [playerId], references: [id])
+  skill         Skill
+  outcome       Outcome
+  opponent      String?
+  matchDate     DateTime?
+  notes         String?
+  playlistClips PlaylistClip[]
+  createdAt     DateTime       @default(now())
+}
+
+model Playlist {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  shareToken  String         @unique
+  clips       PlaylistClip[]
+  createdAt   DateTime       @default(now())
+}
+
+model PlaylistClip {
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  clipId     String
+  clip       Clip     @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  position   Int
+
+  @@id([playlistId, clipId])
+}

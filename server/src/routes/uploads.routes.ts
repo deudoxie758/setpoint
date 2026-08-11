@@ -12,7 +12,9 @@ const signInput = z.object({
 router.post("/sign", async (req, res, next) => {
   try {
     const { fileName } = signInput.parse(req.body);
-    const ext = fileName.includes(".") ? fileName.split(".").pop() : "mp4";
+    const parts = fileName.split(".");
+    const rawExt = parts.length > 1 ? parts.pop() : undefined;
+    const ext = rawExt && rawExt.length > 0 ? rawExt : "mp4";
     const path = `${randomUUID()}.${ext}`;
 
     const { signedUrl, token } = await createSignedUploadUrl(path);

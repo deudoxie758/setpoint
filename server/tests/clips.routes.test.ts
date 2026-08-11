@@ -1,13 +1,9 @@
 import request from "supertest";
 import { createApp } from "../src/app";
 import { resetDb } from "./helpers/db";
+import { createPlayer } from "./helpers/fixtures";
 
 const app = createApp();
-
-async function createPlayer(name = "Jane Doe") {
-  const res = await request(app).post("/players").send({ name });
-  return res.body.player.id as string;
-}
 
 describe("Clips", () => {
   afterEach(async () => {
@@ -15,7 +11,7 @@ describe("Clips", () => {
   });
 
   it("creates a clip and rejects an unknown playerId", async () => {
-    const playerId = await createPlayer();
+    const playerId = await createPlayer(app);
 
     const createRes = await request(app).post("/clips").send({
       title: "Cross-court kill",
@@ -41,8 +37,8 @@ describe("Clips", () => {
   });
 
   it("filters clips by playerId, skill, and opponent", async () => {
-    const playerA = await createPlayer("Jane Doe");
-    const playerB = await createPlayer("Sam Lee");
+    const playerA = await createPlayer(app, "Jane Doe");
+    const playerB = await createPlayer(app, "Sam Lee");
 
     await request(app).post("/clips").send({
       title: "Jane kill",
@@ -87,7 +83,7 @@ describe("Clips", () => {
   });
 
   it("gets, updates, and deletes a single clip", async () => {
-    const playerId = await createPlayer();
+    const playerId = await createPlayer(app);
     const createRes = await request(app).post("/clips").send({
       title: "Cross-court kill",
       sourceType: "LINK",
@@ -110,5 +106,21 @@ describe("Clips", () => {
 
     const afterDelete = await request(app).get(`/clips/${id}`);
     expect(afterDelete.status).toBe(404);
+  });
+
+  it("returns 400 when updating a clip's playerId to an unknown player", async () => {
+    const playerId = await createPlayer(app);
+    const createRes = await request(app).post("/clips").send({
+      title: "Cross-court kill",
+      sourceType: "LINK",
+      url: "https://youtube.com/watch?v=abc",
+      playerId,
+      skill: "SPIKE",
+      outcome: "POINT_WON",
+    });
+    const id = createRes.body.clip.id;
+
+    const updateRes = await request(app).patch(`/clips/${id}`).send({ playerId: "does-not-exist" });
+    expect(updateRes.status).toBe(400);
   });
 });

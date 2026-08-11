@@ -72,6 +72,10 @@ router.get("/:id", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const data = clipInput.partial().parse(req.body);
+    if (data.playerId) {
+      const player = await prisma.player.findUnique({ where: { id: data.playerId } });
+      if (!player) throw new ApiError(400, "playerId does not reference an existing player");
+    }
     const clip = await prisma.clip.update({ where: { id: req.params.id }, data });
     res.json({ clip });
   } catch (err) {

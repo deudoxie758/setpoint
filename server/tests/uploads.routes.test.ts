@@ -29,4 +29,13 @@ describe("POST /uploads/sign", () => {
     const res = await request(app).post("/uploads/sign").send({});
     expect(res.status).toBe(400);
   });
+
+  it("falls back to mp4 instead of a trailing dot for a filename ending in a literal dot", async () => {
+    const app = createApp();
+    const res = await request(app).post("/uploads/sign").send({ fileName: "clip." });
+
+    expect(res.status).toBe(200);
+    expect(res.body.path).not.toMatch(/\.$/);
+    expect(res.body.path).toMatch(/\.mp4$/);
+  });
 });

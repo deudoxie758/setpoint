@@ -1,25 +1,9 @@
 import request from "supertest";
 import { createApp } from "../src/app";
 import { resetDb } from "./helpers/db";
+import { createPlayer, createClip } from "./helpers/fixtures";
 
 const app = createApp();
-
-async function createPlayer(name = "Jane Doe") {
-  const res = await request(app).post("/players").send({ name });
-  return res.body.player.id as string;
-}
-
-async function createClip(playerId: string, title: string) {
-  const res = await request(app).post("/clips").send({
-    title,
-    sourceType: "LINK",
-    url: `https://youtube.com/watch?v=${title.replace(/\s/g, "")}`,
-    playerId,
-    skill: "SPIKE",
-    outcome: "POINT_WON",
-  });
-  return res.body.clip.id as string;
-}
 
 describe("Playlists", () => {
   afterEach(async () => {
@@ -34,10 +18,10 @@ describe("Playlists", () => {
   });
 
   it("adds clips, reorders them, and removes one", async () => {
-    const playerId = await createPlayer();
-    const clipA = await createClip(playerId, "Clip A");
-    const clipB = await createClip(playerId, "Clip B");
-    const clipC = await createClip(playerId, "Clip C");
+    const playerId = await createPlayer(app);
+    const clipA = await createClip(app, playerId, "Clip A");
+    const clipB = await createClip(app, playerId, "Clip B");
+    const clipC = await createClip(app, playerId, "Clip C");
 
     const playlistRes = await request(app).post("/playlists").send({ name: "Recruiting Reel" });
     const playlistId = playlistRes.body.playlist.id;
@@ -59,6 +43,32 @@ describe("Playlists", () => {
 
     const getRes = await request(app).get(`/playlists/${playlistId}`);
     expect(getRes.body.playlist.clips.map((pc: any) => pc.clip.id)).toEqual([clipC, clipB]);
+  });
+
+  it("returns 400 when adding a clipId that doesn't reference an existing clip", async () => {
+    const playlistRes = await request(app).post("/playlists").send({ name: "Recruiting Reel" });
+    const playlistId = playlistRes.body.playlist.id;
+
+    const addRes = await request(app)
+      .post(`/playlists/${playlistId}/clips`)
+      .send({ clipIds: ["does-not-exist"] });
+    expect(addRes.status).toBe(400);
+  });
+
+  it("returns 400 when reorder is given a partial clip list", async () => {
+    const playerId = await createPlayer(app);
+    const clipA = await createClip(app, playerId, "Clip A");
+    const clipB = await createClip(app, playerId, "Clip B");
+
+    const playlistRes = await request(app).post("/playlists").send({ name: "Recruiting Reel" });
+    const playlistId = playlistRes.body.playlist.id;
+
+    await request(app).post(`/playlists/${playlistId}/clips`).send({ clipIds: [clipA, clipB] });
+
+    const reorderRes = await request(app)
+      .patch(`/playlists/${playlistId}/clips/reorder`)
+      .send({ clipIds: [clipA] });
+    expect(reorderRes.status).toBe(400);
   });
 
   it("returns 404 for a playlist that doesn't exist", async () => {

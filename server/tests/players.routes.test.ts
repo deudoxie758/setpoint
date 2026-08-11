@@ -45,4 +45,21 @@ describe("Players", () => {
     const afterDelete = await request(app).get(`/players/${id}`);
     expect(afterDelete.status).toBe(404);
   });
+
+  it("returns 409 when deleting a player who still has clips", async () => {
+    const createRes = await request(app).post("/players").send({ name: "Jane Doe" });
+    const id = createRes.body.player.id;
+
+    await request(app).post("/clips").send({
+      title: "Cross-court kill",
+      sourceType: "LINK",
+      url: "https://youtube.com/watch?v=abc",
+      playerId: id,
+      skill: "SPIKE",
+      outcome: "POINT_WON",
+    });
+
+    const deleteRes = await request(app).delete(`/players/${id}`);
+    expect(deleteRes.status).toBe(409);
+  });
 });

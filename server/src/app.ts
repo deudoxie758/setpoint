@@ -6,6 +6,7 @@ import playersRoutes from "./routes/players.routes";
 import clipsRoutes from "./routes/clips.routes";
 import playlistsRoutes from "./routes/playlists.routes";
 import shareRoutes from "./routes/share.routes";
+import uploadsRoutes from "./routes/uploads.routes";
 
 export function createApp(): Express {
   const app = express();
@@ -21,6 +22,7 @@ export function createApp(): Express {
   app.use("/clips", clipsRoutes);
   app.use("/playlists", playlistsRoutes);
   app.use("/share", shareRoutes);
+  app.use("/uploads", uploadsRoutes);
 
   app.use(errorHandler);
 

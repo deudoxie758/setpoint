@@ -3,6 +3,7 @@ import cors from "cors";
 import { config } from "./config/env";
 import { errorHandler } from "./middleware/errorHandler";
 import playersRoutes from "./routes/players.routes";
+import clipsRoutes from "./routes/clips.routes";
 
 export function createApp(): Express {
   const app = express();
@@ -15,6 +16,7 @@ export function createApp(): Express {
   });
 
   app.use("/players", playersRoutes);
+  app.use("/clips", clipsRoutes);
 
   app.use(errorHandler);
 

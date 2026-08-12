@@ -22,7 +22,17 @@ Volleyball highlight clip library — link or upload match clips, tag them with 
 
 ## Frontend (`web/`)
 
-Not yet built — see `docs/superpowers/plans/` for the frontend implementation plan once it exists.
+### Local setup
+
+1. `cd web && npm install`
+2. `cp .env.example .env.local` — defaults point at `http://localhost:4000` (the local API) and `http://localhost:3000` (this app itself).
+3. `npm test` — runs the FilterBar and playlist-reorder tests (the two pieces of frontend logic with real interaction/state logic, per the design spec).
+4. `npm run dev` — starts the app on `http://localhost:3000`. Requires `server/` running locally too (see the Backend section above) and its Postgres container up.
+
+### Notes
+
+- Uploading a clip requires a real Supabase project configured in `server/.env` (see the Backend section's manual setup steps) — without it, the upload flow surfaces a friendly error with a Retry button rather than crashing, which is expected in local dev without those credentials.
+- Most CRUD pages (players, clips library, playlists list/builder) are manually verified rather than unit-tested, per the design spec's testing scope — only the FilterBar and the playlist drag-reorder logic have dedicated tests.
 
 ## Design docs
 

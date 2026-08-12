@@ -1,5 +1,5 @@
 export function getEmbedUrl(url: string): string | null {
-  const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+  const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]+)/);
   if (youtubeMatch) {
     return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
   }

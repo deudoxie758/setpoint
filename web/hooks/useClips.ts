@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";
-import { ClipWithPlayer, ClipFilters } from "@/lib/types";
+import { Clip, ClipWithPlayer, ClipFilters } from "@/lib/types";
 import { ClipFormValues } from "@/lib/schemas";
 
 function buildQuery(filters: ClipFilters): string {
@@ -22,11 +22,39 @@ export function useClips(filters: ClipFilters = {}) {
   });
 }
 
+export function useClip(id: string) {
+  return useQuery({
+    queryKey: ["clips", id],
+    queryFn: () => apiFetch<{ clip: ClipWithPlayer }>(`/clips/${id}`).then((r) => r.clip),
+    enabled: Boolean(id),
+  });
+}
+
 export function useCreateClip() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: ClipFormValues) =>
       apiFetch<{ clip: ClipWithPlayer }>("/clips", { method: "POST", body: JSON.stringify(data) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clips"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
+      // A new clip changes its player's stats rollup (and any cached single-player
+      // query), so invalidate players broadly rather than just the clips list.
+      queryClient.invalidateQueries({ queryKey: ["players"] });
+    },
+  });
+}
+
+export function useUpdateClip() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<ClipFormValues> }) =>
+      apiFetch<{ clip: Clip }>(`/clips/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
+      // Editing a clip's skill/outcome/playerId affects a player's stats rollup —
+      // invalidate players broadly since the mutation only knows the clip id, not
+      // which player(s) are affected (the playerId may itself have just changed).
+      queryClient.invalidateQueries({ queryKey: ["players"] });
+    },
   });
 }

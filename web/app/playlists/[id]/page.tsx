@@ -13,6 +13,8 @@ import { FilterBar } from "@/components/FilterBar";
 import { PlaylistClipList } from "@/components/PlaylistClipList";
 import { ClipFilters } from "@/lib/types";
 import { ApiClientError } from "@/lib/apiClient";
+import { ListSkeleton } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -45,7 +47,14 @@ export default function PlaylistBuilderPage({ params }: { params: { id: string }
     );
   }
 
-  if (isLoading) return <p className="text-sm text-slate-500">Loading…</p>;
+  if (isLoading) {
+    return (
+      <div className="flex max-w-lg flex-col gap-4">
+        <div className="h-6 w-48 animate-pulse rounded bg-white/5" />
+        <ListSkeleton count={3} />
+      </div>
+    );
+  }
 
   if (isError || !playlist) {
     return (
@@ -74,11 +83,20 @@ export default function PlaylistBuilderPage({ params }: { params: { id: string }
 
       {reorderError && <p className="text-sm text-rose-400">{reorderError}</p>}
 
-      <PlaylistClipList
-        clips={playlist.clips}
-        onReorder={handleReorder}
-        onRemove={(clipId) => removeClip.mutate({ playlistId, clipId })}
-      />
+      {playlist.clips.length === 0 ? (
+        <EmptyState
+          title="No clips in this playlist yet"
+          description="Select clips from the library, or use the filter below to bulk-add."
+          actionHref="/"
+          actionLabel="Browse the library"
+        />
+      ) : (
+        <PlaylistClipList
+          clips={playlist.clips}
+          onReorder={handleReorder}
+          onRemove={(clipId) => removeClip.mutate({ playlistId, clipId })}
+        />
+      )}
 
       <div className="card flex flex-col gap-3 p-4">
         <h2 className="font-medium text-slate-200">Add clips matching a filter</h2>

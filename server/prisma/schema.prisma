@@ -43,6 +43,7 @@ model Clip {
   title         String
   sourceType    SourceType
   url           String
+  thumbnailUrl  String?
   playerId      String
   player        Player         @relation(fields: [playerId], references: [id])
   skill         Skill

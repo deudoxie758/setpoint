@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePlaylists, useCreatePlaylist } from "@/hooks/usePlaylists";
 import { playlistFormSchema, PlaylistFormValues } from "@/lib/schemas";
+import { ListSkeleton } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function PlaylistsPage() {
   const { data: playlists, isLoading } = usePlaylists();
@@ -38,7 +40,11 @@ export default function PlaylistsPage() {
         </button>
       </form>
 
-      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {isLoading && <ListSkeleton />}
+
+      {!isLoading && playlists?.length === 0 && (
+        <EmptyState title="No playlists yet" description="Create one above, then add clips to it from the library." />
+      )}
 
       <ul className="flex flex-col gap-2">
         {playlists?.map((playlist) => (

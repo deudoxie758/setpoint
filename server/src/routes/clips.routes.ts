@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Skill, Outcome, SourceType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { ApiError } from "../middleware/errorHandler";
+import { getThumbnailUrl } from "../lib/thumbnail";
 
 const router = Router();
 
@@ -23,7 +24,8 @@ router.post("/", async (req, res, next) => {
     const data = clipInput.parse(req.body);
     const player = await prisma.player.findUnique({ where: { id: data.playerId } });
     if (!player) throw new ApiError(400, "playerId does not reference an existing player");
-    const clip = await prisma.clip.create({ data });
+    const thumbnailUrl = await getThumbnailUrl(data.sourceType, data.url);
+    const clip = await prisma.clip.create({ data: { ...data, thumbnailUrl } });
     res.status(201).json({ clip });
   } catch (err) {
     next(err);
@@ -76,7 +78,34 @@ router.patch("/:id", async (req, res, next) => {
       const player = await prisma.player.findUnique({ where: { id: data.playerId } });
       if (!player) throw new ApiError(400, "playerId does not reference an existing player");
     }
-    const clip = await prisma.clip.update({ where: { id: req.params.id }, data });
+
+    // The edit form always resubmits the full record, including url/sourceType,
+    // even when neither changed — so only recompute (and, for Vimeo, make a
+    // network call) when the value actually differs from what's stored. The
+    // read-modify-write is wrapped in a transaction with a row lock so two
+    // concurrent edits to the same clip can't interleave and let a slower
+    // thumbnail fetch overwrite a newer save with a stale result.
+    const clip = await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        { id: string; sourceType: SourceType; url: string }[]
+      >`SELECT id, "sourceType", url FROM "Clip" WHERE id = ${req.params.id} FOR UPDATE`;
+      if (locked.length === 0) throw new ApiError(404, "Clip not found");
+      const existing = locked[0];
+
+      const sourceTypeChanged = data.sourceType !== undefined && data.sourceType !== existing.sourceType;
+      const urlChanged = data.url !== undefined && data.url !== existing.url;
+
+      let thumbnailUrl: string | null | undefined;
+      if (sourceTypeChanged || urlChanged) {
+        thumbnailUrl = await getThumbnailUrl(data.sourceType ?? existing.sourceType, data.url ?? existing.url);
+      }
+
+      return tx.clip.update({
+        where: { id: req.params.id },
+        data: { ...data, ...(thumbnailUrl !== undefined ? { thumbnailUrl } : {}) },
+      });
+    });
+
     res.json({ clip });
   } catch (err) {
     next(err);

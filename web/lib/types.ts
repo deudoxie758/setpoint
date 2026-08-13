@@ -17,6 +17,7 @@ export interface Clip {
   title: string;
   sourceType: SourceType;
   url: string;
+  thumbnailUrl: string | null;
   playerId: string;
   skill: Skill;
   outcome: Outcome;
@@ -60,4 +61,21 @@ export interface ClipFilters {
   skill?: Skill;
   outcome?: Outcome;
   opponent?: string;
+}
+
+export interface SkillStats {
+  skill: Skill;
+  count: number;
+  pointWonPct: number | null;
+  pointLostPct: number | null;
+  noPointPct: number | null;
+}
+
+export interface PlayerStats {
+  totalClips: number;
+  pointWonPct: number | null;
+  pointLostPct: number | null;
+  noPointPct: number | null;
+  attackEfficiency: number | null;
+  bySkill: SkillStats[];
 }

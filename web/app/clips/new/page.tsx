@@ -138,6 +138,10 @@ export default function NewClipPage() {
         </select>
 
         <input {...register("opponent")} placeholder="Opponent (optional)" className="field bg-slate-900" />
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">Match date (optional)</label>
+          <input {...register("matchDate")} type="date" className="field bg-slate-900" />
+        </div>
         <textarea {...register("notes")} placeholder="Notes (optional)" className="field bg-slate-900" />
 
         {submitError && <p className="text-sm text-rose-400">{submitError}</p>}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePlayers, useCreatePlayer, useUpdatePlayer, useDeletePlayer } from "@/hooks/usePlayers";
@@ -115,7 +116,7 @@ export default function PlayersPage() {
       <ul className="flex flex-col gap-2">
         {players?.map((player) => (
           <li key={player.id} className="card card-hover flex items-center justify-between p-3">
-            <span className="text-slate-200">
+            <Link href={`/players/${player.id}`} className="text-slate-200 hover:text-cyan-300">
               {player.name}
               {player.position ? <span className="text-slate-400"> — {player.position}</span> : ""}
               {player.graduationYear ? (
@@ -123,7 +124,7 @@ export default function PlayersPage() {
               ) : (
                 ""
               )}
-            </span>
+            </Link>
             <div className="flex gap-4 text-sm">
               <button type="button" onClick={() => startEdit(player)} className="text-cyan-300 hover:text-cyan-200">
                 Edit

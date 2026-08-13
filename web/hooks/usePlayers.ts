@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";
-import { Player } from "@/lib/types";
+import { Player, PlayerStats } from "@/lib/types";
 
 interface PlayerPayload {
   name: string;
@@ -34,6 +34,14 @@ export function useUpdatePlayer() {
     mutationFn: ({ id, data }: { id: string; data: PlayerUpdateData }) =>
       apiFetch<{ player: Player }>(`/players/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["players"] }),
+  });
+}
+
+export function usePlayerStats(id: string) {
+  return useQuery({
+    queryKey: ["players", id, "stats"],
+    queryFn: () => apiFetch<{ stats: PlayerStats }>(`/players/${id}/stats`).then((r) => r.stats),
+    enabled: Boolean(id),
   });
 }
 

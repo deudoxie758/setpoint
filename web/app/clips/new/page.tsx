@@ -44,45 +44,53 @@ export default function NewClipPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Add a clip</h1>
+    <div className="flex max-w-lg flex-col gap-6">
+      <div>
+        <p className="font-mono text-xs uppercase tracking-widest text-cyan-400">New Entry</p>
+        <h1 className="text-2xl font-bold text-slate-50">Add a clip</h1>
+      </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={() => selectMode("LINK")}
-          className={mode === "LINK" ? "font-semibold underline" : ""}
+          className={mode === "LINK" ? "btn-primary" : "btn-ghost"}
         >
           Link
         </button>
         <button
           type="button"
           onClick={() => selectMode("UPLOAD")}
-          className={mode === "UPLOAD" ? "font-semibold underline" : ""}
+          className={mode === "UPLOAD" ? "btn-primary" : "btn-ghost"}
         >
           Upload
         </button>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="card flex flex-col gap-3 p-4">
         <div>
-          <input {...register("title")} placeholder="Title" className="w-full rounded border px-2 py-1" />
-          {errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}
+          <input {...register("title")} placeholder="Title" className="field w-full bg-slate-900" />
+          {errors.title && <p className="text-sm text-rose-400">{errors.title.message}</p>}
         </div>
 
         {mode === "LINK" ? (
           <div>
-            <input {...register("url")} placeholder="https://…" className="w-full rounded border px-2 py-1" />
-            {errors.url && <p className="text-sm text-red-600">{errors.url.message}</p>}
+            <input {...register("url")} placeholder="https://…" className="field w-full bg-slate-900" />
+            {errors.url && <p className="text-sm text-rose-400">{errors.url.message}</p>}
           </div>
         ) : (
-          <div>
-            <input type="file" accept="video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-            {uploading && <p>Uploading… {progress}%</p>}
+          <div className="flex flex-col gap-2">
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-400/10 file:px-3 file:py-1.5 file:text-cyan-300"
+            />
+            {uploading && <p className="font-mono text-xs text-cyan-300">Uploading… {progress}%</p>}
             {uploadError && (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-rose-400">
                 {uploadError} —{" "}
-                <button type="button" onClick={() => file && upload(file)}>
+                <button type="button" onClick={() => file && upload(file)} className="underline">
                   Retry
                 </button>
               </p>
@@ -90,7 +98,7 @@ export default function NewClipPage() {
           </div>
         )}
 
-        <select {...register("playerId")} className="rounded border px-2 py-1">
+        <select {...register("playerId")} className="field bg-slate-900">
           <option value="">Select player…</option>
           {players?.map((p) => (
             <option key={p.id} value={p.id}>
@@ -98,9 +106,9 @@ export default function NewClipPage() {
             </option>
           ))}
         </select>
-        {errors.playerId && <p className="text-sm text-red-600">{errors.playerId.message}</p>}
+        {errors.playerId && <p className="text-sm text-rose-400">{errors.playerId.message}</p>}
 
-        <select {...register("skill")} className="rounded border px-2 py-1">
+        <select {...register("skill")} className="field bg-slate-900">
           {SKILLS.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -108,7 +116,7 @@ export default function NewClipPage() {
           ))}
         </select>
 
-        <select {...register("outcome")} className="rounded border px-2 py-1">
+        <select {...register("outcome")} className="field bg-slate-900">
           {OUTCOMES.map((o) => (
             <option key={o} value={o}>
               {o}
@@ -116,14 +124,10 @@ export default function NewClipPage() {
           ))}
         </select>
 
-        <input {...register("opponent")} placeholder="Opponent (optional)" className="rounded border px-2 py-1" />
-        <textarea {...register("notes")} placeholder="Notes (optional)" className="rounded border px-2 py-1" />
+        <input {...register("opponent")} placeholder="Opponent (optional)" className="field bg-slate-900" />
+        <textarea {...register("notes")} placeholder="Notes (optional)" className="field bg-slate-900" />
 
-        <button
-          type="submit"
-          disabled={uploading || createClip.isPending}
-          className="rounded bg-slate-900 px-3 py-1 text-white"
-        >
+        <button type="submit" disabled={uploading || createClip.isPending} className="btn-primary">
           Save clip
         </button>
       </form>

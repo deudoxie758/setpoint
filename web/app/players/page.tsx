@@ -53,45 +53,56 @@ export default function PlayersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Players</h1>
+      <div>
+        <p className="font-mono text-xs uppercase tracking-widest text-cyan-400">Roster</p>
+        <h1 className="text-2xl font-bold text-slate-50">Players</h1>
+      </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-wrap items-start gap-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="card flex flex-wrap items-start gap-3 p-4">
         <div>
-          <input {...register("name")} placeholder="Name" className="rounded border px-2 py-1" />
-          {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
+          <input {...register("name")} placeholder="Name" className="field bg-slate-900" />
+          {errors.name && <p className="text-sm text-rose-400">{errors.name.message}</p>}
         </div>
-        <input {...register("position")} placeholder="Position" className="rounded border px-2 py-1" />
+        <input {...register("position")} placeholder="Position" className="field bg-slate-900" />
         <input
           {...register("graduationYear")}
           placeholder="Grad year"
           type="number"
-          className="rounded border px-2 py-1"
+          className="field w-28 bg-slate-900"
         />
-        <button type="submit" className="rounded bg-slate-900 px-3 py-1 text-white">
+        <button type="submit" className="btn-primary">
           {editingId ? "Save" : "Add player"}
         </button>
         {editingId && (
-          <button type="button" onClick={cancelEdit}>
+          <button type="button" onClick={cancelEdit} className="btn-ghost">
             Cancel
           </button>
         )}
       </form>
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
 
       <ul className="flex flex-col gap-2">
         {players?.map((player) => (
-          <li key={player.id} className="flex items-center justify-between rounded border bg-white p-3">
-            <span>
+          <li key={player.id} className="card card-hover flex items-center justify-between p-3">
+            <span className="text-slate-200">
               {player.name}
-              {player.position ? ` — ${player.position}` : ""}
-              {player.graduationYear ? ` (${player.graduationYear})` : ""}
+              {player.position ? <span className="text-slate-400"> — {player.position}</span> : ""}
+              {player.graduationYear ? (
+                <span className="ml-1 font-mono text-xs text-slate-500">'{String(player.graduationYear).slice(-2)}</span>
+              ) : (
+                ""
+              )}
             </span>
-            <div className="flex gap-3 text-sm">
-              <button type="button" onClick={() => startEdit(player)}>
+            <div className="flex gap-4 text-sm">
+              <button type="button" onClick={() => startEdit(player)} className="text-cyan-300 hover:text-cyan-200">
                 Edit
               </button>
-              <button type="button" onClick={() => deletePlayer.mutate(player.id)} className="text-red-600">
+              <button
+                type="button"
+                onClick={() => deletePlayer.mutate(player.id)}
+                className="text-rose-400 hover:text-rose-300"
+              >
                 Delete
               </button>
             </div>

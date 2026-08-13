@@ -44,22 +44,25 @@ export default function LibraryPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Clip Library</h1>
-        <Link href="/clips/new" className="rounded bg-slate-900 px-3 py-1 text-white">
-          Add clip
+        <div>
+          <p className="font-mono text-xs uppercase tracking-widest text-cyan-400">Film Room</p>
+          <h1 className="text-2xl font-bold text-slate-50">Clip Library</h1>
+        </div>
+        <Link href="/clips/new" className="btn-primary">
+          + Add clip
         </Link>
       </div>
 
       <FilterBar players={players ?? []} filters={filters} onChange={setFilters} />
 
       {selectedIds.length > 0 && (
-        <div className="flex items-center gap-3 rounded border bg-white p-3">
-          <span>{selectedIds.length} selected</span>
+        <div className="card flex items-center gap-3 p-3">
+          <span className="text-sm text-slate-300">{selectedIds.length} selected</span>
           <select
             value={targetPlaylistId}
             onChange={(e) => setTargetPlaylistId(e.target.value)}
             aria-label="Target playlist"
-            className="rounded border px-2 py-1"
+            className="field bg-slate-900"
           >
             <option value="">Choose a playlist…</option>
             {playlists?.map((pl) => (
@@ -68,13 +71,13 @@ export default function LibraryPage() {
               </option>
             ))}
           </select>
-          <button type="button" onClick={addSelectedToPlaylist} disabled={!targetPlaylistId}>
+          <button type="button" onClick={addSelectedToPlaylist} disabled={!targetPlaylistId} className="btn-ghost">
             Add to playlist
           </button>
         </div>
       )}
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {clips?.map((clip) => (

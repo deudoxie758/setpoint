@@ -16,7 +16,7 @@ export function FilterBar({ players, filters, onChange }: Props) {
         aria-label="Filter by player"
         value={filters.playerId ?? ""}
         onChange={(e) => onChange({ ...filters, playerId: e.target.value || undefined })}
-        className="rounded border px-2 py-1"
+        className="field bg-slate-900"
       >
         <option value="">All players</option>
         {players.map((p) => (
@@ -30,7 +30,7 @@ export function FilterBar({ players, filters, onChange }: Props) {
         aria-label="Filter by skill"
         value={filters.skill ?? ""}
         onChange={(e) => onChange({ ...filters, skill: (e.target.value || undefined) as Skill | undefined })}
-        className="rounded border px-2 py-1"
+        className="field bg-slate-900"
       >
         <option value="">All skills</option>
         {SKILLS.map((s) => (
@@ -44,7 +44,7 @@ export function FilterBar({ players, filters, onChange }: Props) {
         aria-label="Filter by outcome"
         value={filters.outcome ?? ""}
         onChange={(e) => onChange({ ...filters, outcome: (e.target.value || undefined) as Outcome | undefined })}
-        className="rounded border px-2 py-1"
+        className="field bg-slate-900"
       >
         <option value="">All outcomes</option>
         {OUTCOMES.map((o) => (
@@ -60,7 +60,7 @@ export function FilterBar({ players, filters, onChange }: Props) {
         placeholder="Opponent"
         value={filters.opponent ?? ""}
         onChange={(e) => onChange({ ...filters, opponent: e.target.value || undefined })}
-        className="rounded border px-2 py-1"
+        className="field bg-slate-900"
       />
     </div>
   );

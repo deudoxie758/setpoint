@@ -32,18 +32,21 @@ export default function PlaylistBuilderPage({ params }: { params: { id: string }
     addClips.mutate({ playlistId, clipIds: filteredClips.map((c) => c.id) });
   }
 
-  if (isLoading || !playlist) return <p>Loading…</p>;
+  if (isLoading || !playlist) return <p className="text-sm text-slate-500">Loading…</p>;
 
   const shareUrl = `${APP_URL}/share/${playlist.shareToken}`;
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">{playlist.name}</h1>
+      <div>
+        <p className="font-mono text-xs uppercase tracking-widest text-cyan-400">Reel Builder</p>
+        <h1 className="text-2xl font-bold text-slate-50">{playlist.name}</h1>
+      </div>
 
-      <div className="flex items-center gap-2 rounded border bg-white p-3">
-        <span className="text-sm text-slate-600">Share link:</span>
-        <code className="text-sm">{shareUrl}</code>
-        <button type="button" onClick={() => navigator.clipboard.writeText(shareUrl)}>
+      <div className="card flex items-center gap-2 p-3">
+        <span className="text-sm text-slate-400">Share link:</span>
+        <code className="flex-1 truncate font-mono text-sm text-cyan-300">{shareUrl}</code>
+        <button type="button" onClick={() => navigator.clipboard.writeText(shareUrl)} className="btn-ghost">
           Copy
         </button>
       </div>
@@ -54,10 +57,10 @@ export default function PlaylistBuilderPage({ params }: { params: { id: string }
         onRemove={(clipId) => removeClip.mutate({ playlistId, clipId })}
       />
 
-      <div className="flex flex-col gap-3 rounded border bg-white p-3">
-        <h2 className="font-medium">Add clips matching a filter</h2>
+      <div className="card flex flex-col gap-3 p-4">
+        <h2 className="font-medium text-slate-200">Add clips matching a filter</h2>
         <FilterBar players={players ?? []} filters={filters} onChange={setFilters} />
-        <button type="button" onClick={addAllMatchingFilter} disabled={!filteredClips?.length}>
+        <button type="button" onClick={addAllMatchingFilter} disabled={!filteredClips?.length} className="btn-ghost">
           Add {filteredClips?.length ?? 0} matching clips
         </button>
       </div>

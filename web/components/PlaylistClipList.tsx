@@ -45,11 +45,16 @@ function SortableClipRow({
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <li ref={setNodeRef} style={style} className="flex items-center justify-between rounded border bg-white p-3">
-      <div {...attributes} {...listeners} className="cursor-grab">
-        {playlistClip.clip.title} — {playlistClip.clip.player.name}
+    <li ref={setNodeRef} style={style} className="card card-hover flex items-center justify-between p-3">
+      <div {...attributes} {...listeners} className="flex cursor-grab items-center gap-2 text-slate-200">
+        <span className="font-mono text-xs text-slate-500">⠿</span>
+        {playlistClip.clip.title} — <span className="text-slate-400">{playlistClip.clip.player.name}</span>
       </div>
-      <button type="button" onClick={() => onRemove(playlistClip.clipId)} className="text-sm text-red-600">
+      <button
+        type="button"
+        onClick={() => onRemove(playlistClip.clipId)}
+        className="text-sm text-rose-400 transition hover:text-rose-300"
+      >
         Remove
       </button>
     </li>

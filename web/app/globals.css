@@ -1,3 +1,42 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+    background-image: radial-gradient(circle at 15% 0%, rgba(34, 211, 238, 0.08), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(139, 92, 246, 0.1), transparent 45%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-white/10 bg-white/[0.03] shadow-lg shadow-black/20 backdrop-blur-sm;
+  }
+
+  .card-hover {
+    @apply transition duration-200 hover:-translate-y-0.5 hover:border-cyan-400/40;
+  }
+
+  .btn-primary {
+    @apply rounded-lg bg-gradient-to-r from-cyan-400 to-violet-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-ghost {
+    @apply rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-white/20 hover:bg-white/[0.06];
+  }
+
+  .field {
+    @apply rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide;
+  }
+
+  .nav-link {
+    @apply text-sm font-medium text-slate-400 transition hover:text-cyan-300;
+  }
+}

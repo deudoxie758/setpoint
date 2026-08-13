@@ -8,6 +8,8 @@ import { usePlayers, useCreatePlayer, useUpdatePlayer, useDeletePlayer } from "@
 import { playerFormSchema, PlayerFormValues } from "@/lib/schemas";
 import { Player } from "@/lib/types";
 import { ApiClientError } from "@/lib/apiClient";
+import { ListSkeleton } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function PlayersPage() {
   const { data: players, isLoading } = usePlayers();
@@ -110,8 +112,12 @@ export default function PlayersPage() {
         {formError && <p className="w-full text-sm text-rose-400">{formError}</p>}
       </form>
 
-      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {isLoading && <ListSkeleton />}
       {deleteError && <p className="text-sm text-rose-400">{deleteError}</p>}
+
+      {!isLoading && players?.length === 0 && (
+        <EmptyState title="No players yet" description="Add a player above before tagging clips." />
+      )}
 
       <ul className="flex flex-col gap-2">
         {players?.map((player) => (

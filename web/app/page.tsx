@@ -7,6 +7,8 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { usePlaylists, useAddClipsToPlaylist } from "@/hooks/usePlaylists";
 import { FilterBar } from "@/components/FilterBar";
 import { ClipCard } from "@/components/ClipCard";
+import { CardGridSkeleton } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
 import { ClipFilters } from "@/lib/types";
 
 export default function LibraryPage() {
@@ -77,18 +79,33 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {isLoading && <CardGridSkeleton />}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {clips?.map((clip) => (
-          <ClipCard
-            key={clip.id}
-            clip={clip}
-            selected={selected.has(clip.id)}
-            onToggleSelected={() => toggleSelected(clip.id)}
-          />
-        ))}
-      </div>
+      {!isLoading && clips?.length === 0 && (
+        <EmptyState
+          title={Object.keys(filters).length > 0 ? "No clips match these filters" : "No clips yet"}
+          description={
+            Object.keys(filters).length > 0
+              ? "Try clearing a filter to see more clips."
+              : "Add your first highlight to start building the library."
+          }
+          actionHref={Object.keys(filters).length > 0 ? undefined : "/clips/new"}
+          actionLabel={Object.keys(filters).length > 0 ? undefined : "Add clip"}
+        />
+      )}
+
+      {!isLoading && clips && clips.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {clips.map((clip) => (
+            <ClipCard
+              key={clip.id}
+              clip={clip}
+              selected={selected.has(clip.id)}
+              onToggleSelected={() => toggleSelected(clip.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

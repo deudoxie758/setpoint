@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Skill, Outcome, SourceType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { ApiError } from "../middleware/errorHandler";
+import { getThumbnailUrl } from "../lib/thumbnail";
 
 const router = Router();
 
@@ -23,7 +24,8 @@ router.post("/", async (req, res, next) => {
     const data = clipInput.parse(req.body);
     const player = await prisma.player.findUnique({ where: { id: data.playerId } });
     if (!player) throw new ApiError(400, "playerId does not reference an existing player");
-    const clip = await prisma.clip.create({ data });
+    const thumbnailUrl = await getThumbnailUrl(data.sourceType, data.url);
+    const clip = await prisma.clip.create({ data: { ...data, thumbnailUrl } });
     res.status(201).json({ clip });
   } catch (err) {
     next(err);
@@ -76,7 +78,18 @@ router.patch("/:id", async (req, res, next) => {
       const player = await prisma.player.findUnique({ where: { id: data.playerId } });
       if (!player) throw new ApiError(400, "playerId does not reference an existing player");
     }
-    const clip = await prisma.clip.update({ where: { id: req.params.id }, data });
+
+    let thumbnailUrl: string | null | undefined;
+    if (data.url !== undefined || data.sourceType !== undefined) {
+      const existing = await prisma.clip.findUnique({ where: { id: req.params.id } });
+      if (!existing) throw new ApiError(404, "Clip not found");
+      thumbnailUrl = await getThumbnailUrl(data.sourceType ?? existing.sourceType, data.url ?? existing.url);
+    }
+
+    const clip = await prisma.clip.update({
+      where: { id: req.params.id },
+      data: { ...data, ...(thumbnailUrl !== undefined ? { thumbnailUrl } : {}) },
+    });
     res.json({ clip });
   } catch (err) {
     next(err);

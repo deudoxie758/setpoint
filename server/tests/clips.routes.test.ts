@@ -124,3 +124,77 @@ describe("Clips", () => {
     expect(updateRes.status).toBe(400);
   });
 });
+
+describe("Clip thumbnails", () => {
+  afterEach(async () => {
+    await resetDb();
+  });
+
+  it("computes a thumbnailUrl for a YouTube link on create", async () => {
+    const playerId = await createPlayer(app);
+    const res = await request(app).post("/clips").send({
+      title: "Cross-court kill",
+      sourceType: "LINK",
+      url: "https://www.youtube.com/watch?v=abc123",
+      playerId,
+      skill: "SPIKE",
+      outcome: "POINT_WON",
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.clip.thumbnailUrl).toBe("https://img.youtube.com/vi/abc123/hqdefault.jpg");
+  });
+
+  it("has a null thumbnailUrl for an UPLOAD clip", async () => {
+    const playerId = await createPlayer(app);
+    const res = await request(app).post("/clips").send({
+      title: "Uploaded clip",
+      sourceType: "UPLOAD",
+      url: "https://storage.example.com/clip.mp4",
+      playerId,
+      skill: "DIG",
+      outcome: "NO_POINT",
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.clip.thumbnailUrl).toBeNull();
+  });
+
+  it("recomputes thumbnailUrl when the url is updated", async () => {
+    const playerId = await createPlayer(app);
+    const createRes = await request(app).post("/clips").send({
+      title: "Cross-court kill",
+      sourceType: "LINK",
+      url: "https://www.youtube.com/watch?v=abc123",
+      playerId,
+      skill: "SPIKE",
+      outcome: "POINT_WON",
+    });
+    const id = createRes.body.clip.id;
+
+    const updateRes = await request(app)
+      .patch(`/clips/${id}`)
+      .send({ url: "https://www.youtube.com/watch?v=zzz999" });
+
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.clip.thumbnailUrl).toBe("https://img.youtube.com/vi/zzz999/hqdefault.jpg");
+  });
+
+  it("leaves thumbnailUrl unchanged when url is not part of the update", async () => {
+    const playerId = await createPlayer(app);
+    const createRes = await request(app).post("/clips").send({
+      title: "Cross-court kill",
+      sourceType: "LINK",
+      url: "https://www.youtube.com/watch?v=abc123",
+      playerId,
+      skill: "SPIKE",
+      outcome: "POINT_WON",
+    });
+    const id = createRes.body.clip.id;
+
+    const updateRes = await request(app).patch(`/clips/${id}`).send({ outcome: "POINT_LOST" });
+
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.clip.thumbnailUrl).toBe("https://img.youtube.com/vi/abc123/hqdefault.jpg");
+  });
+});

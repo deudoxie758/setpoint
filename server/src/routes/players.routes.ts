@@ -7,8 +7,8 @@ const router = Router();
 
 const playerInput = z.object({
   name: z.string().min(1),
-  position: z.string().optional(),
-  graduationYear: z.number().int().optional(),
+  position: z.string().nullable().optional(),
+  graduationYear: z.number().int().nullable().optional(),
 });
 
 router.post("/", async (req, res, next) => {

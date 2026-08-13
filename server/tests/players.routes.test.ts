@@ -46,6 +46,15 @@ describe("Players", () => {
     expect(afterDelete.status).toBe(404);
   });
 
+  it("clears an optional field by sending null", async () => {
+    const createRes = await request(app).post("/players").send({ name: "Jane Doe", position: "Setter" });
+    const id = createRes.body.player.id;
+
+    const updateRes = await request(app).patch(`/players/${id}`).send({ position: null });
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.player.position).toBeNull();
+  });
+
   it("returns 409 when deleting a player who still has clips", async () => {
     const createRes = await request(app).post("/players").send({ name: "Jane Doe" });
     const id = createRes.body.player.id;

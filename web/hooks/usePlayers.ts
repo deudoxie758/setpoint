@@ -17,6 +17,14 @@ export function usePlayers() {
   });
 }
 
+export function usePlayer(id: string) {
+  return useQuery({
+    queryKey: ["players", id],
+    queryFn: () => apiFetch<{ player: Player }>(`/players/${id}`).then((r) => r.player),
+    enabled: Boolean(id),
+  });
+}
+
 export function useCreatePlayer() {
   const queryClient = useQueryClient();
   return useMutation({

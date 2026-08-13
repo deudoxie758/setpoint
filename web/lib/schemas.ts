@@ -28,6 +28,7 @@ export const clipFormSchema = z
     skill: z.enum(SKILLS),
     outcome: z.enum(OUTCOMES),
     opponent: z.string().optional(),
+    matchDate: z.preprocess(blankToUndefined, z.string().optional()),
     notes: z.string().optional(),
   })
   .refine((data) => data.sourceType !== "LINK" || isValidHttpUrl(data.url ?? ""), {

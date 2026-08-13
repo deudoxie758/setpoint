@@ -40,4 +40,14 @@ describe("clipFormSchema", () => {
     const result = clipFormSchema.safeParse({ ...base, sourceType: "UPLOAD", url: undefined });
     expect(result.success).toBe(true);
   });
+
+  it("accepts an optional matchDate", () => {
+    const result = clipFormSchema.parse({ ...base, url: "https://youtube.com/watch?v=abc123", matchDate: "2026-03-01" });
+    expect(result.matchDate).toBe("2026-03-01");
+  });
+
+  it("leaves matchDate unset when the field is blank", () => {
+    const result = clipFormSchema.parse({ ...base, url: "https://youtube.com/watch?v=abc123", matchDate: "" });
+    expect(result.matchDate).toBeUndefined();
+  });
 });

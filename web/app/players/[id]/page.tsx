@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePlayers, usePlayerStats } from "@/hooks/usePlayers";
+import { usePlayer, usePlayerStats } from "@/hooks/usePlayers";
 
 function StatBar({ label, pct, colorClass }: { label: string; pct: number | null; colorClass: string }) {
   return (
@@ -19,11 +19,11 @@ function StatBar({ label, pct, colorClass }: { label: string; pct: number | null
 
 export default function PlayerDetailPage({ params }: { params: { id: string } }) {
   const playerId = params.id;
-  const { data: players, isLoading: playersLoading } = usePlayers();
-  const { data: stats, isLoading: statsLoading, isError } = usePlayerStats(playerId);
+  const { data: player, isLoading: playerLoading, isError: playerError } = usePlayer(playerId);
+  const { data: stats, isLoading: statsLoading, isError: statsError } = usePlayerStats(playerId);
 
-  const player = players?.find((p) => p.id === playerId);
-  const isLoading = playersLoading || statsLoading;
+  const isLoading = playerLoading || statsLoading;
+  const isError = playerError || statsError;
 
   if (isLoading) {
     return (

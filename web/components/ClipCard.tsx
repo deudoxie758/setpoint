@@ -18,11 +18,14 @@ const outcomeBadgeClass: Record<ClipWithPlayer["outcome"], string> = {
 function ClipMedia({ clip, readOnly }: { clip: ClipWithPlayer; readOnly: boolean }) {
   const embedUrl = clip.sourceType === "LINK" ? getEmbedUrl(clip.url) : null;
 
-  // The public share page has no other page to click through to, so it always
-  // gets the live, playable embed. The library grid renders many cards at
-  // once — mounting a live <video>/<iframe> per card is real overhead, so it
-  // gets a static thumbnail (or a placeholder) linking to the detail page instead.
-  if (readOnly) {
+  // Uploaded clips and the public share page always get a live, playable
+  // player rather than a static thumbnail. The thumbnail swap exists to avoid
+  // mounting a live YouTube/Vimeo <iframe> per card in a grid of many —
+  // that cost doesn't apply to a plain <video> tag (no iframe, no third-party
+  // embed), so uploads keep the inline player everywhere, same as before the
+  // thumbnail work. The share page has no other page to click through to
+  // watch a clip, so it always gets the live embed too.
+  if (readOnly || clip.sourceType === "UPLOAD") {
     if (clip.sourceType === "UPLOAD") {
       return <video src={clip.url} controls className="aspect-video w-full rounded-lg bg-black" />;
     }

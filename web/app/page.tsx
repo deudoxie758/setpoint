@@ -10,6 +10,7 @@ import { ClipCard } from "@/components/ClipCard";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ClipFilters } from "@/lib/types";
+import { hasActiveFilters } from "@/lib/filters";
 
 export default function LibraryPage() {
   const [filters, setFilters] = useState<ClipFilters>({});
@@ -83,14 +84,14 @@ export default function LibraryPage() {
 
       {!isLoading && clips?.length === 0 && (
         <EmptyState
-          title={Object.keys(filters).length > 0 ? "No clips match these filters" : "No clips yet"}
+          title={hasActiveFilters(filters) ? "No clips match these filters" : "No clips yet"}
           description={
-            Object.keys(filters).length > 0
+            hasActiveFilters(filters)
               ? "Try clearing a filter to see more clips."
               : "Add your first highlight to start building the library."
           }
-          actionHref={Object.keys(filters).length > 0 ? undefined : "/clips/new"}
-          actionLabel={Object.keys(filters).length > 0 ? undefined : "Add clip"}
+          actionHref={hasActiveFilters(filters) ? undefined : "/clips/new"}
+          actionLabel={hasActiveFilters(filters) ? undefined : "Add clip"}
         />
       )}
 

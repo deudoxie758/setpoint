@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { clipFormSchema, ClipFormValues, SKILLS, OUTCOMES } from "@/lib/schemas";
+import { clipFormSchema, ClipFormValues } from "@/lib/schemas";
+import { SKILLS, OUTCOMES } from "@/lib/schemas";
 import { useClip, useUpdateClip } from "@/hooks/useClips";
 import { usePlayers } from "@/hooks/usePlayers";
 import { ApiClientError } from "@/lib/apiClient";
@@ -21,22 +22,38 @@ export default function ClipDetailPage({ params }: { params: { id: string } }) {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
-  } = useForm<ClipFormValues>({
-    resolver: zodResolver(clipFormSchema),
-    values: clip
-      ? {
-          title: clip.title,
-          sourceType: clip.sourceType,
-          url: clip.url,
-          playerId: clip.playerId,
-          skill: clip.skill,
-          outcome: clip.outcome,
-          opponent: clip.opponent ?? undefined,
-          notes: clip.notes ?? undefined,
-        }
-      : undefined,
-  });
+  } = useForm<ClipFormValues>({ resolver: zodResolver(clipFormSchema) });
+
+  // Re-sync the form (and the save/error banners) only when we start editing a
+  // *different* clip — not on every refetch of the current one. useUpdateClip
+  // invalidates this same clip's query on every successful save, so if the form
+  // synced reactively off the query result (e.g. via useForm's `values` option),
+  // the background refetch that follows a save could silently overwrite whatever
+  // the user had already started typing next. Tracking "which clip have we
+  // initialized for" in a ref, rather than reacting to the clip object's
+  // identity, is what breaks that link.
+  const initializedForClipId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!clip) return;
+    if (initializedForClipId.current === clipId) return;
+    initializedForClipId.current = clipId;
+    setSubmitError(null);
+    setSaved(false);
+    reset({
+      title: clip.title,
+      sourceType: clip.sourceType,
+      url: clip.url,
+      playerId: clip.playerId,
+      skill: clip.skill,
+      outcome: clip.outcome,
+      opponent: clip.opponent ?? undefined,
+      matchDate: clip.matchDate ? clip.matchDate.slice(0, 10) : undefined,
+      notes: clip.notes ?? undefined,
+    });
+  }, [clip, clipId, reset]);
 
   function onSubmit(values: ClipFormValues) {
     setSubmitError(null);
@@ -134,6 +151,10 @@ export default function ClipDetailPage({ params }: { params: { id: string } }) {
         </select>
 
         <input {...register("opponent")} placeholder="Opponent (optional)" className="field bg-slate-900" />
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">Match date (optional)</label>
+          <input {...register("matchDate")} type="date" className="field bg-slate-900" />
+        </div>
         <textarea {...register("notes")} placeholder="Notes (optional)" className="field bg-slate-900" />
 
         {submitError && <p className="text-sm text-rose-400">{submitError}</p>}

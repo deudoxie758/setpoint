@@ -1,8 +1,14 @@
 import { getThumbnailUrl } from "../../src/lib/thumbnail";
 
 describe("getThumbnailUrl", () => {
+  const realFetch = global.fetch;
+
   afterEach(() => {
     jest.restoreAllMocks();
+    // jest.restoreAllMocks() only undoes jest.spyOn(); several tests below
+    // reassign global.fetch directly (`global.fetch = jest.fn(...)`), which
+    // it doesn't touch, so without this the mock leaks into later tests.
+    global.fetch = realFetch;
   });
 
   it("builds a static img.youtube.com URL for a youtube.com/watch link, with no network call", async () => {
@@ -28,7 +34,8 @@ describe("getThumbnailUrl", () => {
 
     expect(result).toBe("https://i.vimeocdn.com/video/123_640.jpg");
     expect(global.fetch).toHaveBeenCalledWith(
-      "https://vimeo.com/api/oembed.json?url=https%3A%2F%2Fvimeo.com%2F76979871"
+      "https://vimeo.com/api/oembed.json?url=https%3A%2F%2Fvimeo.com%2F76979871",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 
@@ -38,6 +45,19 @@ describe("getThumbnailUrl", () => {
     const result = await getThumbnailUrl("LINK", "https://vimeo.com/does-not-exist-000");
 
     expect(result).toBeNull();
+  });
+
+  it("passes a bounded AbortSignal to the Vimeo fetch so a hanging request can't block indefinitely", async () => {
+    global.fetch = jest.fn(async () =>
+      new Response(JSON.stringify({ thumbnail_url: "https://i.vimeocdn.com/video/123_640.jpg" }), {
+        status: 200,
+      })
+    ) as jest.Mock;
+
+    await getThumbnailUrl("LINK", "https://vimeo.com/76979871");
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("returns null for an unrecognized link provider", async () => {

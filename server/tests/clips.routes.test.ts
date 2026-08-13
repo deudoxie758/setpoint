@@ -197,4 +197,39 @@ describe("Clip thumbnails", () => {
     expect(updateRes.status).toBe(200);
     expect(updateRes.body.clip.thumbnailUrl).toBe("https://img.youtube.com/vi/abc123/hqdefault.jpg");
   });
+
+  it("does not recompute thumbnailUrl when url is resent unchanged", async () => {
+    const realFetch = global.fetch;
+    global.fetch = jest.fn(async () =>
+      new Response(JSON.stringify({ thumbnail_url: "https://i.vimeocdn.com/video/123_640.jpg" }), { status: 200 })
+    ) as jest.Mock;
+
+    const playerId = await createPlayer(app);
+    const createRes = await request(app).post("/clips").send({
+      title: "Cross-court kill",
+      sourceType: "LINK",
+      url: "https://vimeo.com/76979871",
+      playerId,
+      skill: "SPIKE",
+      outcome: "POINT_WON",
+    });
+    const id = createRes.body.clip.id;
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    // The web edit form always submits the full record, including url/sourceType,
+    // even when the user only changed an unrelated field like outcome — so this
+    // must not trigger a needless (and, for Vimeo, network-bound) recompute.
+    const updateRes = await request(app).patch(`/clips/${id}`).send({
+      title: "Cross-court kill",
+      sourceType: "LINK",
+      url: "https://vimeo.com/76979871",
+      outcome: "POINT_LOST",
+    });
+
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.clip.thumbnailUrl).toBe("https://i.vimeocdn.com/video/123_640.jpg");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    global.fetch = realFetch;
+  });
 });

@@ -12,16 +12,18 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { FilterBar } from "@/components/FilterBar";
 import { PlaylistClipList } from "@/components/PlaylistClipList";
 import { ClipFilters } from "@/lib/types";
+import { ApiClientError } from "@/lib/apiClient";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export default function PlaylistBuilderPage({ params }: { params: { id: string } }) {
   const playlistId = params.id;
 
-  const { data: playlist, isLoading } = usePlaylist(playlistId);
+  const { data: playlist, isLoading, isError, error } = usePlaylist(playlistId);
   const reorder = useReorderPlaylistClips();
   const removeClip = useRemovePlaylistClip();
   const addClips = useAddClipsToPlaylist();
+  const [reorderError, setReorderError] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<ClipFilters>({});
   const { data: players } = usePlayers();
@@ -32,7 +34,26 @@ export default function PlaylistBuilderPage({ params }: { params: { id: string }
     addClips.mutate({ playlistId, clipIds: filteredClips.map((c) => c.id) });
   }
 
-  if (isLoading || !playlist) return <p className="text-sm text-slate-500">Loading…</p>;
+  function handleReorder(clipIds: string[]) {
+    setReorderError(null);
+    reorder.mutate(
+      { playlistId, clipIds },
+      {
+        onError: (err) =>
+          setReorderError(err instanceof ApiClientError ? err.message : "Failed to reorder clips."),
+      }
+    );
+  }
+
+  if (isLoading) return <p className="text-sm text-slate-500">Loading…</p>;
+
+  if (isError || !playlist) {
+    return (
+      <p className="text-sm text-rose-400">
+        {error instanceof ApiClientError ? error.message : "This playlist could not be found."}
+      </p>
+    );
+  }
 
   const shareUrl = `${APP_URL}/share/${playlist.shareToken}`;
 
@@ -51,9 +72,11 @@ export default function PlaylistBuilderPage({ params }: { params: { id: string }
         </button>
       </div>
 
+      {reorderError && <p className="text-sm text-rose-400">{reorderError}</p>}
+
       <PlaylistClipList
         clips={playlist.clips}
-        onReorder={(clipIds) => reorder.mutate({ playlistId, clipIds })}
+        onReorder={handleReorder}
         onRemove={(clipId) => removeClip.mutate({ playlistId, clipId })}
       />
 

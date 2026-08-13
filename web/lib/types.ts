@@ -1,6 +1,8 @@
-export type SourceType = "LINK" | "UPLOAD";
-export type Skill = "SERVE" | "ACE" | "SPIKE" | "BLOCK" | "DIG" | "SET" | "ASSIST";
-export type Outcome = "POINT_WON" | "POINT_LOST" | "NO_POINT";
+import { SOURCE_TYPES, SKILLS, OUTCOMES } from "@/lib/schemas";
+
+export type SourceType = (typeof SOURCE_TYPES)[number];
+export type Skill = (typeof SKILLS)[number];
+export type Outcome = (typeof OUTCOMES)[number];
 
 export interface Player {
   id: string;

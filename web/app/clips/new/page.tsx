@@ -8,6 +8,7 @@ import { clipFormSchema, ClipFormValues, SKILLS, OUTCOMES } from "@/lib/schemas"
 import { usePlayers } from "@/hooks/usePlayers";
 import { useCreateClip } from "@/hooks/useClips";
 import { useUpload } from "@/hooks/useUpload";
+import { ApiClientError } from "@/lib/apiClient";
 
 export default function NewClipPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function NewClipPage() {
   const { upload, progress, error: uploadError, uploading } = useUpload();
   const [mode, setMode] = useState<"LINK" | "UPLOAD">("LINK");
   const [file, setFile] = useState<File | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
@@ -28,14 +30,25 @@ export default function NewClipPage() {
   });
 
   async function onSubmit(values: ClipFormValues) {
+    setSubmitError(null);
     let url = values.url;
 
     if (mode === "UPLOAD") {
       if (!file) return;
-      url = await upload(file);
+      try {
+        url = await upload(file);
+      } catch {
+        return;
+      }
     }
 
-    createClip.mutate({ ...values, sourceType: mode, url }, { onSuccess: () => router.push("/") });
+    createClip.mutate(
+      { ...values, sourceType: mode, url },
+      {
+        onSuccess: () => router.push("/"),
+        onError: (err) => setSubmitError(err instanceof ApiClientError ? err.message : "Failed to save clip."),
+      }
+    );
   }
 
   function selectMode(next: "LINK" | "UPLOAD") {
@@ -90,7 +103,7 @@ export default function NewClipPage() {
             {uploadError && (
               <p className="text-sm text-rose-400">
                 {uploadError} —{" "}
-                <button type="button" onClick={() => file && upload(file)} className="underline">
+                <button type="button" onClick={() => file && upload(file).catch(() => {})} className="underline">
                   Retry
                 </button>
               </p>
@@ -126,6 +139,8 @@ export default function NewClipPage() {
 
         <input {...register("opponent")} placeholder="Opponent (optional)" className="field bg-slate-900" />
         <textarea {...register("notes")} placeholder="Notes (optional)" className="field bg-slate-900" />
+
+        {submitError && <p className="text-sm text-rose-400">{submitError}</p>}
 
         <button type="submit" disabled={uploading || createClip.isPending} className="btn-primary">
           Save clip

@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";
 import { Player } from "@/lib/types";
-import { PlayerFormValues } from "@/lib/schemas";
+
+interface PlayerPayload {
+  name: string;
+  position?: string | null;
+  graduationYear?: number | null;
+}
 
 export function usePlayers() {
   return useQuery({
@@ -15,16 +20,18 @@ export function usePlayers() {
 export function useCreatePlayer() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: PlayerFormValues) =>
+    mutationFn: (data: PlayerPayload) =>
       apiFetch<{ player: Player }>("/players", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["players"] }),
   });
 }
 
+type PlayerUpdateData = Partial<PlayerPayload>;
+
 export function useUpdatePlayer() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<PlayerFormValues> }) =>
+    mutationFn: ({ id, data }: { id: string; data: PlayerUpdateData }) =>
       apiFetch<{ player: Player }>(`/players/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["players"] }),
   });

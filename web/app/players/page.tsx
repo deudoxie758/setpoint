@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { usePlayers, useCreatePlayer, useUpdatePlayer, useDeletePlayer } from "@/hooks/usePlayers";
 import { playerFormSchema, PlayerFormValues } from "@/lib/schemas";
 import { Player } from "@/lib/types";
+import { ApiClientError } from "@/lib/apiClient";
 
 export default function PlayersPage() {
   const { data: players, isLoading } = usePlayers();
@@ -13,6 +14,8 @@ export default function PlayersPage() {
   const updatePlayer = useUpdatePlayer();
   const deletePlayer = useDeletePlayer();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const {
     register,
@@ -21,20 +24,45 @@ export default function PlayersPage() {
     formState: { errors },
   } = useForm<PlayerFormValues>({ resolver: zodResolver(playerFormSchema) });
 
+  function errorMessage(err: unknown, fallback: string): string {
+    return err instanceof ApiClientError ? err.message : fallback;
+  }
+
   function onSubmit(values: PlayerFormValues) {
+    setFormError(null);
+    // The form always represents the player's full current state, so a blank
+    // field means "clear it" — send null explicitly rather than omitting the
+    // key, which the backend would otherwise treat as "leave unchanged".
+    const data = {
+      name: values.name,
+      position: values.position ?? null,
+      graduationYear: values.graduationYear ?? null,
+    };
+
     if (editingId) {
       updatePlayer.mutate(
-        { id: editingId, data: values },
+        { id: editingId, data },
         {
           onSuccess: () => {
             setEditingId(null);
             reset();
           },
+          onError: (err) => setFormError(errorMessage(err, "Failed to save player.")),
         }
       );
     } else {
-      createPlayer.mutate(values, { onSuccess: () => reset() });
+      createPlayer.mutate(data, {
+        onSuccess: () => reset(),
+        onError: (err) => setFormError(errorMessage(err, "Failed to add player.")),
+      });
     }
+  }
+
+  function handleDelete(playerId: string) {
+    setDeleteError(null);
+    deletePlayer.mutate(playerId, {
+      onError: (err) => setDeleteError(errorMessage(err, "Failed to delete player.")),
+    });
   }
 
   function startEdit(player: Player) {
@@ -78,9 +106,11 @@ export default function PlayersPage() {
             Cancel
           </button>
         )}
+        {formError && <p className="w-full text-sm text-rose-400">{formError}</p>}
       </form>
 
       {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {deleteError && <p className="text-sm text-rose-400">{deleteError}</p>}
 
       <ul className="flex flex-col gap-2">
         {players?.map((player) => (
@@ -100,7 +130,7 @@ export default function PlayersPage() {
               </button>
               <button
                 type="button"
-                onClick={() => deletePlayer.mutate(player.id)}
+                onClick={() => handleDelete(player.id)}
                 className="text-rose-400 hover:text-rose-300"
               >
                 Delete

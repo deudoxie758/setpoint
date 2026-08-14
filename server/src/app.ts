@@ -7,6 +7,7 @@ import clipsRoutes from "./routes/clips.routes";
 import playlistsRoutes from "./routes/playlists.routes";
 import shareRoutes from "./routes/share.routes";
 import uploadsRoutes from "./routes/uploads.routes";
+import aiRoutes from "./routes/ai.routes";
 
 export function createApp(): Express {
   const app = express();
@@ -23,6 +24,7 @@ export function createApp(): Express {
   app.use("/playlists", playlistsRoutes);
   app.use("/share", shareRoutes);
   app.use("/uploads", uploadsRoutes);
+  app.use("/ai", aiRoutes);
 
   app.use(errorHandler);
 

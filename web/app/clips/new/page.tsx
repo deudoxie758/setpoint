@@ -9,6 +9,8 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { useCreateClip } from "@/hooks/useClips";
 import { useUpload } from "@/hooks/useUpload";
 import { ApiClientError } from "@/lib/apiClient";
+import { captureFrames } from "@/lib/captureFrames";
+import { useAiStatus, useSuggestTags } from "@/hooks/useAiTagging";
 
 export default function NewClipPage() {
   const router = useRouter();
@@ -18,6 +20,10 @@ export default function NewClipPage() {
   const [mode, setMode] = useState<"LINK" | "UPLOAD">("LINK");
   const [file, setFile] = useState<File | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { data: aiAvailable } = useAiStatus();
+  const suggestTags = useSuggestTags();
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<{ confidence: number; rationale: string } | null>(null);
 
   const {
     register,
@@ -54,6 +60,21 @@ export default function NewClipPage() {
   function selectMode(next: "LINK" | "UPLOAD") {
     setMode(next);
     setValue("sourceType", next);
+  }
+
+  async function handleSuggestTags() {
+    if (!file) return;
+    setAiError(null);
+    setAiSuggestion(null);
+    try {
+      const frames = await captureFrames(file);
+      const suggestion = await suggestTags.mutateAsync(frames);
+      setValue("skill", suggestion.skill);
+      setValue("outcome", suggestion.outcome);
+      setAiSuggestion({ confidence: suggestion.confidence, rationale: suggestion.rationale });
+    } catch {
+      setAiError("Couldn't generate a suggestion. You can still tag this clip manually.");
+    }
   }
 
   return (
@@ -96,7 +117,11 @@ export default function NewClipPage() {
             <input
               type="file"
               accept="video/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null);
+                setAiSuggestion(null);
+                setAiError(null);
+              }}
               className="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-400/10 file:px-3 file:py-1.5 file:text-cyan-300"
             />
             {uploading && <p className="font-mono text-xs text-cyan-300">Uploading… {progress}%</p>}
@@ -108,6 +133,23 @@ export default function NewClipPage() {
                 </button>
               </p>
             )}
+            {file && aiAvailable && (
+              <button
+                type="button"
+                onClick={handleSuggestTags}
+                disabled={suggestTags.isPending}
+                className="btn-ghost self-start text-sm"
+              >
+                {suggestTags.isPending ? "Analyzing…" : "Suggest tags with AI"}
+              </button>
+            )}
+            {aiSuggestion && (
+              <p className="text-xs text-slate-400">
+                AI suggested ({Math.round(aiSuggestion.confidence * 100)}% confidence) — please double-check.{" "}
+                {aiSuggestion.rationale}
+              </p>
+            )}
+            {aiError && <p className="text-xs text-rose-400">{aiError}</p>}
           </div>
         )}
 

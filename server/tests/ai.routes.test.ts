@@ -75,6 +75,22 @@ describe("AI tagging routes", () => {
       expect(res.status).toBe(400);
     });
 
+    it("accepts a realistic multi-frame payload larger than Express's default 100kb body limit", async () => {
+      config.anthropicApiKey = "test-key";
+      mockSuggestTags.mockResolvedValue({
+        skill: "SPIKE",
+        outcome: "POINT_WON",
+        confidence: 0.8,
+        rationale: "Jump and strike.",
+      });
+      // ~50kb per frame x 4 frames, matching a real 640x480 JPEG data URI payload
+      const frames = Array(4).fill("data:image/jpeg;base64," + "A".repeat(50_000));
+
+      const res = await request(createApp()).post("/ai/suggest-tags").send({ frames });
+
+      expect(res.status).toBe(200);
+    });
+
     it("returns 400 when frames has more than 4 items", async () => {
       config.anthropicApiKey = "test-key";
       const frames = Array(5).fill("data:image/jpeg;base64,AAA");

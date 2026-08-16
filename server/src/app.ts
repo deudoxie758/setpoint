@@ -13,7 +13,9 @@ export function createApp(): Express {
   const app = express();
 
   app.use(cors({ origin: config.clientOrigin }));
-  app.use(express.json());
+  // 10mb covers the AI tag-suggestion payload (up to 4 base64 JPEG frames,
+  // capped at 2MB each in ai.routes.ts) with headroom; no other route sends large bodies.
+  app.use(express.json({ limit: "10mb" }));
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clipFormSchema, ClipFormValues, SKILLS, OUTCOMES } from "@/lib/schemas";
+import { Skill } from "@/lib/types";
 import { usePlayers } from "@/hooks/usePlayers";
 import { useCreateClip } from "@/hooks/useClips";
 import { useUpload } from "@/hooks/useUpload";
@@ -23,7 +24,9 @@ export default function NewClipPage() {
   const { data: aiAvailable } = useAiStatus();
   const suggestTags = useSuggestTags();
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiSuggestion, setAiSuggestion] = useState<{ confidence: number; rationale: string } | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<{ confidence: number; rationale: string; skill: Skill } | null>(
+    null
+  );
   const [jerseyColor, setJerseyColor] = useState("");
   const [jerseyNumber, setJerseyNumber] = useState("");
 
@@ -82,7 +85,7 @@ export default function NewClipPage() {
       });
       setValue("skill", suggestion.skill);
       setValue("outcome", suggestion.outcome);
-      setAiSuggestion({ confidence: suggestion.confidence, rationale: suggestion.rationale });
+      setAiSuggestion({ confidence: suggestion.confidence, rationale: suggestion.rationale, skill: suggestion.skill });
     } catch {
       setAiError("Couldn't generate a suggestion. You can still tag this clip manually.");
     }
@@ -174,10 +177,17 @@ export default function NewClipPage() {
               </div>
             )}
             {aiSuggestion && (
-              <p className="text-xs text-slate-400">
-                AI suggested ({Math.round(aiSuggestion.confidence * 100)}% confidence) — please double-check.{" "}
-                {aiSuggestion.rationale}
-              </p>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-slate-400">
+                  AI suggested ({Math.round(aiSuggestion.confidence * 100)}% confidence) — please double-check.{" "}
+                  {aiSuggestion.rationale}
+                </p>
+                {(aiSuggestion.skill === "SPIKE" || aiSuggestion.skill === "BLOCK") && (
+                  <p className="text-xs text-amber-400">
+                    Spikes and blocks are the hardest for the AI to tell apart — double-check this one closely.
+                  </p>
+                )}
+              </div>
             )}
             {aiError && <p className="text-xs text-rose-400">{aiError}</p>}
           </div>

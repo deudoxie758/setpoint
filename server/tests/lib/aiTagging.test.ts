@@ -76,6 +76,21 @@ describe("suggestTags", () => {
     expect(textBlock.text).toContain("7");
   });
 
+  it("includes skill definitions in the prompt to disambiguate adjacent skills like BLOCK vs DIG", async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        { type: "tool_use", input: { skill: "BLOCK", outcome: "POINT_WON", confidence: 0.9, rationale: "x" } },
+      ],
+    });
+
+    await suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "red", jerseyNumber: "5" });
+
+    const call = mockCreate.mock.calls[0][0];
+    const textBlock = call.messages[0].content.find((b: { type: string }) => b.type === "text");
+    expect(textBlock.text).toContain("hands above the net");
+    expect(textBlock.text).toContain("back row");
+  });
+
   it("includes the jersey color without a number when jerseyNumber is not provided", async () => {
     mockCreate.mockResolvedValue({
       content: [

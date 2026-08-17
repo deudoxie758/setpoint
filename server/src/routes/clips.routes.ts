@@ -17,6 +17,9 @@ const clipInput = z.object({
   opponent: z.string().optional(),
   matchDate: z.coerce.date().optional(),
   notes: z.string().optional(),
+  aiSuggested: z.boolean().optional(),
+  aiConfidence: z.number().min(0).max(1).optional(),
+  aiRationale: z.string().optional(),
 });
 
 router.post("/", async (req, res, next) => {

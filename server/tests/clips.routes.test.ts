@@ -10,6 +10,39 @@ describe("Clips", () => {
     await resetDb();
   });
 
+  it("persists aiSuggested/aiConfidence/aiRationale when provided, and defaults to unset otherwise", async () => {
+    const playerId = await createPlayer(app);
+
+    const aiTaggedRes = await request(app).post("/clips").send({
+      title: "AI-tagged kill",
+      sourceType: "LINK",
+      url: "https://youtube.com/watch?v=ai1",
+      playerId,
+      skill: "BLOCK",
+      outcome: "POINT_WON",
+      aiSuggested: true,
+      aiConfidence: 0.78,
+      aiRationale: "Red jersey #5 blocks the attack at the net.",
+    });
+    expect(aiTaggedRes.status).toBe(201);
+    expect(aiTaggedRes.body.clip.aiSuggested).toBe(true);
+    expect(aiTaggedRes.body.clip.aiConfidence).toBe(0.78);
+    expect(aiTaggedRes.body.clip.aiRationale).toBe("Red jersey #5 blocks the attack at the net.");
+
+    const manualRes = await request(app).post("/clips").send({
+      title: "Manually tagged kill",
+      sourceType: "LINK",
+      url: "https://youtube.com/watch?v=manual1",
+      playerId,
+      skill: "SPIKE",
+      outcome: "POINT_WON",
+    });
+    expect(manualRes.status).toBe(201);
+    expect(manualRes.body.clip.aiSuggested).toBe(false);
+    expect(manualRes.body.clip.aiConfidence).toBeNull();
+    expect(manualRes.body.clip.aiRationale).toBeNull();
+  });
+
   it("creates a clip and rejects an unknown playerId", async () => {
     const playerId = await createPlayer(app);
 

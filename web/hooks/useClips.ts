@@ -30,10 +30,16 @@ export function useClip(id: string) {
   });
 }
 
+export interface CreateClipInput extends ClipFormValues {
+  aiSuggested?: boolean;
+  aiConfidence?: number;
+  aiRationale?: string;
+}
+
 export function useCreateClip() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: ClipFormValues) =>
+    mutationFn: (data: CreateClipInput) =>
       apiFetch<{ clip: ClipWithPlayer }>("/clips", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clips"] });

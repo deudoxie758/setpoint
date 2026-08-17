@@ -96,6 +96,13 @@ export default function ClipDetailPage({ params }: { params: { id: string } }) {
           {clip.player.name}
           {clip.opponent ? ` vs ${clip.opponent}` : ""}
         </p>
+        {clip.aiSuggested && (
+          <div className="mt-2 rounded-lg border border-cyan-400/30 bg-cyan-400/5 p-2 text-xs text-cyan-300">
+            🤖 AI-tagged
+            {clip.aiConfidence != null ? ` (${Math.round(clip.aiConfidence * 100)}% confidence)` : ""}
+            {clip.aiRationale && <p className="mt-1 text-slate-400">{clip.aiRationale}</p>}
+          </div>
+        )}
       </div>
 
       {clip.sourceType === "UPLOAD" ? (

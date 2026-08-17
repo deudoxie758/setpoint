@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clipFormSchema, ClipFormValues, SKILLS, OUTCOMES } from "@/lib/schemas";
-import { Skill } from "@/lib/types";
+import { Skill, Outcome } from "@/lib/types";
 import { usePlayers } from "@/hooks/usePlayers";
 import { useCreateClip } from "@/hooks/useClips";
 import { useUpload } from "@/hooks/useUpload";
@@ -24,9 +24,12 @@ export default function NewClipPage() {
   const { data: aiAvailable } = useAiStatus();
   const suggestTags = useSuggestTags();
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiSuggestion, setAiSuggestion] = useState<{ confidence: number; rationale: string; skill: Skill } | null>(
-    null
-  );
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    confidence: number;
+    rationale: string;
+    skill: Skill;
+    outcome: Outcome;
+  } | null>(null);
   const [jerseyColor, setJerseyColor] = useState("");
   const [jerseyNumber, setJerseyNumber] = useState("");
 
@@ -57,8 +60,21 @@ export default function NewClipPage() {
       }
     }
 
+    // Only tag the saved clip as AI-suggested if the skill/outcome being submitted
+    // still match what the AI last suggested — if either was edited afterward, this
+    // is a manual tag and shouldn't carry stale AI confidence/rationale.
+    const matchesAiSuggestion =
+      aiSuggestion !== null && aiSuggestion.skill === values.skill && aiSuggestion.outcome === values.outcome;
+
     createClip.mutate(
-      { ...values, sourceType: mode, url },
+      {
+        ...values,
+        sourceType: mode,
+        url,
+        aiSuggested: matchesAiSuggestion,
+        aiConfidence: matchesAiSuggestion ? aiSuggestion.confidence : undefined,
+        aiRationale: matchesAiSuggestion ? aiSuggestion.rationale : undefined,
+      },
       {
         onSuccess: () => router.push("/"),
         onError: (err) => setSubmitError(err instanceof ApiClientError ? err.message : "Failed to save clip."),
@@ -85,7 +101,12 @@ export default function NewClipPage() {
       });
       setValue("skill", suggestion.skill);
       setValue("outcome", suggestion.outcome);
-      setAiSuggestion({ confidence: suggestion.confidence, rationale: suggestion.rationale, skill: suggestion.skill });
+      setAiSuggestion({
+        confidence: suggestion.confidence,
+        rationale: suggestion.rationale,
+        skill: suggestion.skill,
+        outcome: suggestion.outcome,
+      });
     } catch {
       setAiError("Couldn't generate a suggestion. You can still tag this clip manually.");
     }

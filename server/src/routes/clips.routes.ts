@@ -4,6 +4,7 @@ import { Skill, Outcome, SourceType } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { ApiError } from "../middleware/errorHandler";
 import { getThumbnailUrl } from "../lib/thumbnail";
+import { verifySuggestionToken } from "../lib/aiSuggestionToken";
 
 const router = Router();
 
@@ -17,18 +18,36 @@ const clipInput = z.object({
   opponent: z.string().optional(),
   matchDate: z.coerce.date().optional(),
   notes: z.string().optional(),
-  aiSuggested: z.boolean().optional(),
-  aiConfidence: z.number().min(0).max(1).optional(),
-  aiRationale: z.string().optional(),
+  // Never trust raw aiSuggested/aiConfidence/aiRationale from the client —
+  // AI provenance is only ever granted by verifying this token server-side
+  // (see aiSuggestionToken.ts), which proves the values actually came from
+  // a real POST /ai/suggest-tags call for this exact player/skill/outcome.
+  aiSuggestionToken: z.string().optional(),
 });
 
 router.post("/", async (req, res, next) => {
   try {
-    const data = clipInput.parse(req.body);
+    const { aiSuggestionToken, ...data } = clipInput.parse(req.body);
     const player = await prisma.player.findUnique({ where: { id: data.playerId } });
     if (!player) throw new ApiError(400, "playerId does not reference an existing player");
     const thumbnailUrl = await getThumbnailUrl(data.sourceType, data.url);
-    const clip = await prisma.clip.create({ data: { ...data, thumbnailUrl } });
+
+    const verified = aiSuggestionToken ? verifySuggestionToken(aiSuggestionToken) : null;
+    const aiVerified =
+      verified !== null &&
+      verified.skill === data.skill &&
+      verified.outcome === data.outcome &&
+      verified.playerId === data.playerId;
+
+    const clip = await prisma.clip.create({
+      data: {
+        ...data,
+        thumbnailUrl,
+        aiSuggested: aiVerified,
+        aiConfidence: aiVerified ? verified!.confidence : null,
+        aiRationale: aiVerified ? verified!.rationale : null,
+      },
+    });
     res.status(201).json({ clip });
   } catch (err) {
     next(err);
@@ -76,7 +95,7 @@ router.get("/:id", async (req, res, next) => {
 
 router.patch("/:id", async (req, res, next) => {
   try {
-    const data = clipInput.partial().parse(req.body);
+    const { aiSuggestionToken: _ignoredOnUpdate, ...data } = clipInput.partial().parse(req.body);
     if (data.playerId) {
       const player = await prisma.player.findUnique({ where: { id: data.playerId } });
       if (!player) throw new ApiError(400, "playerId does not reference an existing player");
@@ -90,8 +109,8 @@ router.patch("/:id", async (req, res, next) => {
     // thumbnail fetch overwrite a newer save with a stale result.
     const clip = await prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<
-        { id: string; sourceType: SourceType; url: string }[]
-      >`SELECT id, "sourceType", url FROM "Clip" WHERE id = ${req.params.id} FOR UPDATE`;
+        { id: string; sourceType: SourceType; url: string; skill: Skill; outcome: Outcome }[]
+      >`SELECT id, "sourceType", url, skill, outcome FROM "Clip" WHERE id = ${req.params.id} FOR UPDATE`;
       if (locked.length === 0) throw new ApiError(404, "Clip not found");
       const existing = locked[0];
 
@@ -103,9 +122,18 @@ router.patch("/:id", async (req, res, next) => {
         thumbnailUrl = await getThumbnailUrl(data.sourceType ?? existing.sourceType, data.url ?? existing.url);
       }
 
+      // The edit page has no AI-suggestion capability of its own, so any
+      // manual change to skill/outcome here can never be re-verified as a
+      // real AI suggestion — clear the provenance rather than leave a
+      // (now-wrong) AI badge attached to a value a human just overrode.
+      const skillChanged = data.skill !== undefined && data.skill !== existing.skill;
+      const outcomeChanged = data.outcome !== undefined && data.outcome !== existing.outcome;
+      const aiFields =
+        skillChanged || outcomeChanged ? { aiSuggested: false, aiConfidence: null, aiRationale: null } : {};
+
       return tx.clip.update({
         where: { id: req.params.id },
-        data: { ...data, ...(thumbnailUrl !== undefined ? { thumbnailUrl } : {}) },
+        data: { ...data, ...(thumbnailUrl !== undefined ? { thumbnailUrl } : {}), ...aiFields },
       });
     });
 

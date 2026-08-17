@@ -1,3 +1,8 @@
+// A vision API needs enough resolution to read the play, not the source
+// video's full resolution — capping it keeps every frame comfortably under
+// the server's per-frame size limit even for a 4K upload, and cuts request cost.
+const MAX_FRAME_DIMENSION = 960;
+
 export async function captureFrames(file: File, count = 9): Promise<string[]> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
@@ -12,9 +17,10 @@ export async function captureFrames(file: File, count = 9): Promise<string[]> {
       throw new Error("Could not read video duration");
     }
 
+    const scale = Math.min(1, MAX_FRAME_DIMENSION / Math.max(video.videoWidth, video.videoHeight));
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       throw new Error("Canvas 2D context unavailable");
@@ -64,8 +70,18 @@ function frameTimestamps(duration: number, count: number): number[] {
   return timestamps;
 }
 
-function waitForEvent(target: HTMLVideoElement, event: "loadedmetadata" | "seeked"): Promise<void> {
+const EVENT_TIMEOUT_MS = 15000;
+
+function waitForEvent(
+  target: HTMLVideoElement,
+  event: "loadedmetadata" | "seeked",
+  timeoutMs = EVENT_TIMEOUT_MS
+): Promise<void> {
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for video to reach "${event}"`));
+    }, timeoutMs);
     function onEvent() {
       cleanup();
       resolve();
@@ -75,6 +91,7 @@ function waitForEvent(target: HTMLVideoElement, event: "loadedmetadata" | "seeke
       reject(new Error(`Video failed while waiting for "${event}"`));
     }
     function cleanup() {
+      clearTimeout(timer);
       target.removeEventListener(event, onEvent);
       target.removeEventListener("error", onError);
     }

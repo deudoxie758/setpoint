@@ -31,9 +31,10 @@ export function useClip(id: string) {
 }
 
 export interface CreateClipInput extends ClipFormValues {
-  aiSuggested?: boolean;
-  aiConfidence?: number;
-  aiRationale?: string;
+  // The server verifies this token (see server/src/lib/aiSuggestionToken.ts)
+  // before granting the AI-provenance badge — the client can no longer just
+  // assert aiSuggested/aiConfidence/aiRationale directly.
+  aiSuggestionToken?: string;
 }
 
 export function useCreateClip() {

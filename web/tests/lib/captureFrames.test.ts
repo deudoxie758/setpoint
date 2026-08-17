@@ -33,14 +33,19 @@ function fakeCanvas() {
 describe("captureFrames", () => {
   let fakeVideo: FakeVideo;
   let originalCreateElement: typeof document.createElement;
+  let capturedCanvas: HTMLCanvasElement | undefined;
 
   beforeEach(() => {
     fakeVideo = new FakeVideo();
+    capturedCanvas = undefined;
     originalCreateElement = document.createElement.bind(document);
 
     jest.spyOn(document, "createElement").mockImplementation(((tag: string) => {
       if (tag === "video") return fakeVideo as unknown as HTMLVideoElement;
-      if (tag === "canvas") return fakeCanvas();
+      if (tag === "canvas") {
+        capturedCanvas = fakeCanvas();
+        return capturedCanvas;
+      }
       return originalCreateElement(tag);
     }) as typeof document.createElement);
 
@@ -102,5 +107,65 @@ describe("captureFrames", () => {
     fakeVideo.dispatchEvent(new Event("error"));
 
     await expect(promise).rejects.toThrow();
+  });
+
+  it("rejects if the video never fires loadedmetadata within the timeout, instead of hanging forever", async () => {
+    jest.useFakeTimers();
+    try {
+      const file = new File(["data"], "clip.mp4", { type: "video/mp4" });
+      const promise = captureFrames(file);
+      const assertion = expect(promise).rejects.toThrow(/timed out/i);
+      await jest.advanceTimersByTimeAsync(30_000);
+      await assertion;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("rejects if a seek never fires within the timeout, instead of hanging forever", async () => {
+    jest.useFakeTimers();
+    try {
+      const file = new File(["data"], "clip.mp4", { type: "video/mp4" });
+      // Override currentTime to never dispatch "seeked", simulating a stalled decode.
+      Object.defineProperty(fakeVideo, "currentTime", {
+        set: () => {
+          /* no-op: never fires "seeked" */
+        },
+      });
+
+      const promise = captureFrames(file);
+      const assertion = expect(promise).rejects.toThrow(/timed out/i);
+      fakeVideo.dispatchEvent(new Event("loadedmetadata"));
+      await jest.advanceTimersByTimeAsync(30_000);
+      await assertion;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("downscales large frames to a reasonable max dimension before export", async () => {
+    fakeVideo.videoWidth = 3840;
+    fakeVideo.videoHeight = 2160;
+    const file = new File(["data"], "clip.mp4", { type: "video/mp4" });
+
+    const promise = captureFrames(file);
+    fakeVideo.dispatchEvent(new Event("loadedmetadata"));
+    await promise;
+
+    expect(capturedCanvas!.width).toBe(960);
+    expect(capturedCanvas!.height).toBe(540);
+  });
+
+  it("does not upscale frames smaller than the max dimension", async () => {
+    fakeVideo.videoWidth = 640;
+    fakeVideo.videoHeight = 360;
+    const file = new File(["data"], "clip.mp4", { type: "video/mp4" });
+
+    const promise = captureFrames(file);
+    fakeVideo.dispatchEvent(new Event("loadedmetadata"));
+    await promise;
+
+    expect(capturedCanvas!.width).toBe(640);
+    expect(capturedCanvas!.height).toBe(360);
   });
 });

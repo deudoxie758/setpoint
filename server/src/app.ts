@@ -13,9 +13,14 @@ export function createApp(): Express {
   const app = express();
 
   app.use(cors({ origin: config.clientOrigin }));
-  // 20mb covers the AI tag-suggestion payload (up to 9 base64 JPEG frames,
-  // capped at 2MB each in ai.routes.ts) with headroom; no other route sends large bodies.
-  app.use(express.json({ limit: "20mb" }));
+  // Scoped to the one route that actually sends large bodies (up to 9 base64
+  // JPEG frames, capped at 2MB each in ai.routes.ts) — mounted before the
+  // general parser below so it runs first for this path; body-parser skips
+  // re-parsing a body it's already consumed, so the general parser below is
+  // effectively a no-op for this route. Every other route keeps Express's
+  // default (much smaller) limit.
+  app.use("/ai/suggest-tags", express.json({ limit: "20mb" }));
+  app.use(express.json());
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });

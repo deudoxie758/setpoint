@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clipFormSchema, ClipFormValues, SKILLS, OUTCOMES } from "@/lib/schemas";
-import { Skill, Outcome } from "@/lib/types";
+import { Skill } from "@/lib/types";
 import { usePlayers } from "@/hooks/usePlayers";
 import { useCreateClip } from "@/hooks/useClips";
 import { useUpload } from "@/hooks/useUpload";
@@ -28,7 +28,7 @@ export default function NewClipPage() {
     confidence: number;
     rationale: string;
     skill: Skill;
-    outcome: Outcome;
+    token: string;
   } | null>(null);
   const [jerseyColor, setJerseyColor] = useState("");
   const [jerseyNumber, setJerseyNumber] = useState("");
@@ -47,6 +47,11 @@ export default function NewClipPage() {
   const selectedPlayerId = watch("playerId");
   const selectedPlayerPosition = players?.find((p) => p.id === selectedPlayerId)?.position ?? undefined;
 
+  function resetAiState() {
+    setAiSuggestion(null);
+    setAiError(null);
+  }
+
   async function onSubmit(values: ClipFormValues) {
     setSubmitError(null);
     let url = values.url;
@@ -60,20 +65,17 @@ export default function NewClipPage() {
       }
     }
 
-    // Only tag the saved clip as AI-suggested if the skill/outcome being submitted
-    // still match what the AI last suggested — if either was edited afterward, this
-    // is a manual tag and shouldn't carry stale AI confidence/rationale.
-    const matchesAiSuggestion =
-      aiSuggestion !== null && aiSuggestion.skill === values.skill && aiSuggestion.outcome === values.outcome;
-
+    // The AI-provenance badge is granted server-side, not decided here — the
+    // server verifies this token proves it really came from a real
+    // /ai/suggest-tags call for this exact player/skill/outcome (see
+    // aiSuggestionToken.ts). If the token is missing, stale, or no longer
+    // matches what's being submitted, the server just saves a normal manual tag.
     createClip.mutate(
       {
         ...values,
         sourceType: mode,
         url,
-        aiSuggested: matchesAiSuggestion,
-        aiConfidence: matchesAiSuggestion ? aiSuggestion.confidence : undefined,
-        aiRationale: matchesAiSuggestion ? aiSuggestion.rationale : undefined,
+        aiSuggestionToken: aiSuggestion?.token,
       },
       {
         onSuccess: () => router.push("/"),
@@ -88,7 +90,7 @@ export default function NewClipPage() {
   }
 
   async function handleSuggestTags() {
-    if (!file || !jerseyColor.trim()) return;
+    if (!file || !jerseyColor.trim() || !selectedPlayerId) return;
     setAiError(null);
     setAiSuggestion(null);
     try {
@@ -98,6 +100,7 @@ export default function NewClipPage() {
         jerseyColor: jerseyColor.trim(),
         jerseyNumber: jerseyNumber.trim() || undefined,
         position: selectedPlayerPosition,
+        playerId: selectedPlayerId,
       });
       setValue("skill", suggestion.skill);
       setValue("outcome", suggestion.outcome);
@@ -105,7 +108,7 @@ export default function NewClipPage() {
         confidence: suggestion.confidence,
         rationale: suggestion.rationale,
         skill: suggestion.skill,
-        outcome: suggestion.outcome,
+        token: suggestion.token,
       });
     } catch {
       setAiError("Couldn't generate a suggestion. You can still tag this clip manually.");
@@ -154,8 +157,7 @@ export default function NewClipPage() {
               accept="video/*"
               onChange={(e) => {
                 setFile(e.target.files?.[0] ?? null);
-                setAiSuggestion(null);
-                setAiError(null);
+                resetAiState();
               }}
               className="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-400/10 file:px-3 file:py-1.5 file:text-cyan-300"
             />
@@ -187,13 +189,16 @@ export default function NewClipPage() {
                 <button
                   type="button"
                   onClick={handleSuggestTags}
-                  disabled={suggestTags.isPending || !jerseyColor.trim()}
+                  disabled={suggestTags.isPending || !jerseyColor.trim() || !selectedPlayerId}
                   className="btn-ghost self-start text-sm"
                 >
                   {suggestTags.isPending ? "Analyzing…" : "Suggest tags with AI"}
                 </button>
                 {!jerseyColor.trim() && (
                   <p className="text-xs text-slate-500">Enter the jersey color above to enable AI suggestions.</p>
+                )}
+                {jerseyColor.trim() && !selectedPlayerId && (
+                  <p className="text-xs text-slate-500">Select a player below to enable AI suggestions.</p>
                 )}
               </div>
             )}
@@ -214,7 +219,7 @@ export default function NewClipPage() {
           </div>
         )}
 
-        <select {...register("playerId")} className="field bg-slate-900">
+        <select {...register("playerId", { onChange: resetAiState })} className="field bg-slate-900">
           <option value="">Select player…</option>
           {players?.map((p) => (
             <option key={p.id} value={p.id}>

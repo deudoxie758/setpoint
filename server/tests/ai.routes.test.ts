@@ -1,4 +1,5 @@
 import request from "supertest";
+import { z } from "zod";
 
 const mockSuggestTags = jest.fn();
 jest.mock("../src/lib/aiTagging", () => ({
@@ -7,6 +8,7 @@ jest.mock("../src/lib/aiTagging", () => ({
 
 import { createApp } from "../src/app";
 import { config } from "../src/config/env";
+import { verifySuggestionToken } from "../src/lib/aiSuggestionToken";
 
 describe("AI tagging routes", () => {
   const originalKey = config.anthropicApiKey;
@@ -36,11 +38,11 @@ describe("AI tagging routes", () => {
       config.anthropicApiKey = "";
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white" });
+        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", playerId: "p1" });
       expect(res.status).toBe(503);
     });
 
-    it("returns a suggestion when configured, frames are valid, and jerseyColor is provided", async () => {
+    it("returns a suggestion plus a signed token when configured, frames are valid, and jerseyColor/playerId are provided", async () => {
       config.anthropicApiKey = "test-key";
       mockSuggestTags.mockResolvedValue({
         skill: "SPIKE",
@@ -51,19 +53,21 @@ describe("AI tagging routes", () => {
 
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", jerseyNumber: "7" });
+        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", jerseyNumber: "7", playerId: "p1" });
 
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({
-        skill: "SPIKE",
-        outcome: "POINT_WON",
-        confidence: 0.8,
-        rationale: "Jump and strike.",
-      });
+      expect(res.body.skill).toBe("SPIKE");
+      expect(res.body.outcome).toBe("POINT_WON");
+      expect(res.body.confidence).toBe(0.8);
+      expect(res.body.rationale).toBe("Jump and strike.");
       expect(mockSuggestTags).toHaveBeenCalledWith(["data:image/jpeg;base64,AAA"], {
         jerseyColor: "white",
         jerseyNumber: "7",
       });
+
+      const verified = verifySuggestionToken(res.body.token);
+      expect(verified).not.toBeNull();
+      expect(verified).toMatchObject({ skill: "SPIKE", outcome: "POINT_WON", confidence: 0.8, playerId: "p1" });
     });
 
     it("passes the player's position through to suggestTags when provided", async () => {
@@ -82,6 +86,7 @@ describe("AI tagging routes", () => {
           jerseyColor: "red",
           jerseyNumber: "5",
           position: "Middle Blocker",
+          playerId: "p1",
         });
 
       expect(res.status).toBe(200);
@@ -94,7 +99,7 @@ describe("AI tagging routes", () => {
 
     it("returns 400 when frames is missing", async () => {
       config.anthropicApiKey = "test-key";
-      const res = await request(createApp()).post("/ai/suggest-tags").send({ jerseyColor: "white" });
+      const res = await request(createApp()).post("/ai/suggest-tags").send({ jerseyColor: "white", playerId: "p1" });
       expect(res.status).toBe(400);
     });
 
@@ -102,7 +107,7 @@ describe("AI tagging routes", () => {
       config.anthropicApiKey = "test-key";
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames: [], jerseyColor: "white" });
+        .send({ frames: [], jerseyColor: "white", playerId: "p1" });
       expect(res.status).toBe(400);
     });
 
@@ -110,7 +115,7 @@ describe("AI tagging routes", () => {
       config.anthropicApiKey = "test-key";
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames: ["data:image/jpeg;base64,AAA"] });
+        .send({ frames: ["data:image/jpeg;base64,AAA"], playerId: "p1" });
       expect(res.status).toBe(400);
     });
 
@@ -118,7 +123,15 @@ describe("AI tagging routes", () => {
       config.anthropicApiKey = "test-key";
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "" });
+        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "", playerId: "p1" });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when playerId is missing", async () => {
+      config.anthropicApiKey = "test-key";
+      const res = await request(createApp())
+        .post("/ai/suggest-tags")
+        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white" });
       expect(res.status).toBe(400);
     });
 
@@ -133,7 +146,7 @@ describe("AI tagging routes", () => {
 
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white" });
+        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", playerId: "p1" });
 
       expect(res.status).toBe(200);
       expect(mockSuggestTags).toHaveBeenCalledWith(["data:image/jpeg;base64,AAA"], { jerseyColor: "white" });
@@ -152,7 +165,7 @@ describe("AI tagging routes", () => {
 
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames, jerseyColor: "white" });
+        .send({ frames, jerseyColor: "white", playerId: "p1" });
 
       expect(res.status).toBe(200);
     });
@@ -162,19 +175,40 @@ describe("AI tagging routes", () => {
       const frames = Array(10).fill("data:image/jpeg;base64,AAA");
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames, jerseyColor: "white" });
+        .send({ frames, jerseyColor: "white", playerId: "p1" });
       expect(res.status).toBe(400);
     });
 
-    it("returns 502 when the suggestion lib throws", async () => {
+    it("returns 502 (not 400) when the suggestion lib throws a generic error", async () => {
       config.anthropicApiKey = "test-key";
       mockSuggestTags.mockRejectedValue(new Error("boom"));
 
       const res = await request(createApp())
         .post("/ai/suggest-tags")
-        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white" });
+        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", playerId: "p1" });
 
       expect(res.status).toBe(502);
+    });
+
+    it("returns 502 (not 400) when the suggestion lib throws a ZodError from validating the model's own response", async () => {
+      config.anthropicApiKey = "test-key";
+      const modelValidationError = new z.ZodError([
+        { code: "invalid_enum_value", path: ["skill"], message: "Invalid enum value", options: [], received: "X" },
+      ]);
+      mockSuggestTags.mockRejectedValue(modelValidationError);
+
+      const res = await request(createApp())
+        .post("/ai/suggest-tags")
+        .send({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", playerId: "p1" });
+
+      expect(res.status).toBe(502);
+    });
+
+    it("still returns 400 for a genuine client request-validation error, not 502", async () => {
+      config.anthropicApiKey = "test-key";
+      const res = await request(createApp()).post("/ai/suggest-tags").send({ frames: [], playerId: "p1" });
+      expect(res.status).toBe(400);
+      expect(mockSuggestTags).not.toHaveBeenCalled();
     });
   });
 });

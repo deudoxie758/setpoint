@@ -24,18 +24,29 @@ describe("useSuggestTags", () => {
     jest.restoreAllMocks();
   });
 
-  it("POSTs the frames plus jersey color/number and returns the suggestion", async () => {
+  it("POSTs the frames plus playerId/jersey color/number and returns the suggestion with its token", async () => {
     global.fetch = jest.fn(
       async () =>
         new Response(
-          JSON.stringify({ skill: "SPIKE", outcome: "POINT_WON", confidence: 0.8, rationale: "Jump and strike." }),
+          JSON.stringify({
+            skill: "SPIKE",
+            outcome: "POINT_WON",
+            confidence: 0.8,
+            rationale: "Jump and strike.",
+            token: "signed-token-abc",
+          }),
           { status: 200 }
         )
     ) as jest.Mock;
 
     const { result } = renderHook(() => useSuggestTags(), { wrapper: createWrapper() });
 
-    result.current.mutate({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", jerseyNumber: "7" });
+    result.current.mutate({
+      frames: ["data:image/jpeg;base64,AAA"],
+      jerseyColor: "white",
+      jerseyNumber: "7",
+      playerId: "p1",
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({
@@ -43,12 +54,18 @@ describe("useSuggestTags", () => {
       outcome: "POINT_WON",
       confidence: 0.8,
       rationale: "Jump and strike.",
+      token: "signed-token-abc",
     });
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining("/ai/suggest-tags"),
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", jerseyNumber: "7" }),
+        body: JSON.stringify({
+          frames: ["data:image/jpeg;base64,AAA"],
+          jerseyColor: "white",
+          jerseyNumber: "7",
+          playerId: "p1",
+        }),
       })
     );
   });
@@ -57,7 +74,13 @@ describe("useSuggestTags", () => {
     global.fetch = jest.fn(
       async () =>
         new Response(
-          JSON.stringify({ skill: "BLOCK", outcome: "POINT_WON", confidence: 0.85, rationale: "Blocked at the net." }),
+          JSON.stringify({
+            skill: "BLOCK",
+            outcome: "POINT_WON",
+            confidence: 0.85,
+            rationale: "Blocked at the net.",
+            token: "signed-token-def",
+          }),
           { status: 200 }
         )
     ) as jest.Mock;
@@ -69,6 +92,7 @@ describe("useSuggestTags", () => {
       jerseyColor: "red",
       jerseyNumber: "5",
       position: "Middle Blocker",
+      playerId: "p1",
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -80,6 +104,7 @@ describe("useSuggestTags", () => {
           jerseyColor: "red",
           jerseyNumber: "5",
           position: "Middle Blocker",
+          playerId: "p1",
         }),
       })
     );

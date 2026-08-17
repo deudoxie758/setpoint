@@ -9,6 +9,10 @@ export interface TagSuggestion {
   outcome: Outcome;
   confidence: number;
   rationale: string;
+  // Signed server-side proof this suggestion really came from a real
+  // /ai/suggest-tags call — pass it back verbatim when saving the clip so
+  // the server can verify (and not just trust) the AI provenance badge.
+  token: string;
 }
 
 export function useAiStatus() {
@@ -23,6 +27,7 @@ export interface SuggestTagsInput {
   jerseyColor: string;
   jerseyNumber?: string;
   position?: string;
+  playerId: string;
 }
 
 export function useSuggestTags() {

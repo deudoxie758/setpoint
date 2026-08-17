@@ -15,6 +15,7 @@ export const config = {
   databaseUrl: required("DATABASE_URL"),
   supabaseUrl: process.env.SUPABASE_URL ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:3000",
   nodeEnv: process.env.NODE_ENV ?? "development",
 };

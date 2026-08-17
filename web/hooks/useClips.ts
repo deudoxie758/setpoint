@@ -30,10 +30,17 @@ export function useClip(id: string) {
   });
 }
 
+export interface CreateClipInput extends ClipFormValues {
+  // The server verifies this token (see server/src/lib/aiSuggestionToken.ts)
+  // before granting the AI-provenance badge — the client can no longer just
+  // assert aiSuggested/aiConfidence/aiRationale directly.
+  aiSuggestionToken?: string;
+}
+
 export function useCreateClip() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: ClipFormValues) =>
+    mutationFn: (data: CreateClipInput) =>
       apiFetch<{ clip: ClipWithPlayer }>("/clips", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clips"] });

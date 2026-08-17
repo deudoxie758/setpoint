@@ -23,6 +23,9 @@ export function errorHandler(
   if (err instanceof ZodError) {
     return res.status(400).json({ error: "Invalid request", details: err.flatten() });
   }
+  if (err && typeof err === "object" && "type" in err && (err as { type: string }).type === "entity.too.large") {
+    return res.status(413).json({ error: "Request body too large" });
+  }
   if (err && typeof err === "object" && "code" in err) {
     const code = (err as { code: string }).code;
     if (code === "P2025") {

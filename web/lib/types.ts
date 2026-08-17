@@ -24,6 +24,9 @@ export interface Clip {
   opponent: string | null;
   matchDate: string | null;
   notes: string | null;
+  aiSuggested: boolean;
+  aiConfidence: number | null;
+  aiRationale: string | null;
   createdAt: string;
 }
 

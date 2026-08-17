@@ -51,6 +51,9 @@ model Clip {
   opponent      String?
   matchDate     DateTime?
   notes         String?
+  aiSuggested   Boolean        @default(false)
+  aiConfidence  Float?
+  aiRationale   String?
   playlistClips PlaylistClip[]
   createdAt     DateTime       @default(now())
 }

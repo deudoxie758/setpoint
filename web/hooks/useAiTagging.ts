@@ -22,6 +22,7 @@ export interface SuggestTagsInput {
   frames: string[];
   jerseyColor: string;
   jerseyNumber?: string;
+  position?: string;
 }
 
 export function useSuggestTags() {

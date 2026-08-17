@@ -66,6 +66,32 @@ describe("AI tagging routes", () => {
       });
     });
 
+    it("passes the player's position through to suggestTags when provided", async () => {
+      config.anthropicApiKey = "test-key";
+      mockSuggestTags.mockResolvedValue({
+        skill: "BLOCK",
+        outcome: "POINT_WON",
+        confidence: 0.85,
+        rationale: "Blocked at the net.",
+      });
+
+      const res = await request(createApp())
+        .post("/ai/suggest-tags")
+        .send({
+          frames: ["data:image/jpeg;base64,AAA"],
+          jerseyColor: "red",
+          jerseyNumber: "5",
+          position: "Middle Blocker",
+        });
+
+      expect(res.status).toBe(200);
+      expect(mockSuggestTags).toHaveBeenCalledWith(["data:image/jpeg;base64,AAA"], {
+        jerseyColor: "red",
+        jerseyNumber: "5",
+        position: "Middle Blocker",
+      });
+    });
+
     it("returns 400 when frames is missing", async () => {
       config.anthropicApiKey = "test-key";
       const res = await request(createApp()).post("/ai/suggest-tags").send({ jerseyColor: "white" });

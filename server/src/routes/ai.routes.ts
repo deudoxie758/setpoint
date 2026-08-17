@@ -13,6 +13,7 @@ const suggestInput = z.object({
   frames: z.array(z.string().min(1).max(MAX_FRAME_LENGTH)).min(1).max(MAX_FRAMES),
   jerseyColor: z.string().min(1, "Jersey color is required"),
   jerseyNumber: z.string().optional(),
+  position: z.string().optional(),
 });
 
 router.get("/status", (_req, res) => {
@@ -25,8 +26,8 @@ router.post("/suggest-tags", async (req, res, next) => {
       throw new ApiError(503, "AI tagging is not configured");
     }
 
-    const { frames, jerseyColor, jerseyNumber } = suggestInput.parse(req.body);
-    const suggestion = await suggestTags(frames, { jerseyColor, jerseyNumber });
+    const { frames, jerseyColor, jerseyNumber, position } = suggestInput.parse(req.body);
+    const suggestion = await suggestTags(frames, { jerseyColor, jerseyNumber, position });
     res.json(suggestion);
   } catch (err) {
     if (err instanceof ApiError || err instanceof z.ZodError) {

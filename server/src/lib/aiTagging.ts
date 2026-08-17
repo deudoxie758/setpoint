@@ -15,13 +15,16 @@ export type TagSuggestion = z.infer<typeof suggestionSchema>;
 export interface PlayerContext {
   jerseyColor: string;
   jerseyNumber?: string;
+  position?: string;
 }
 
 const SKILL_DEFINITIONS: Record<Skill, string> = {
   SERVE: "starting the rally by hitting the ball over the net from behind the end line",
   ACE: "a serve that wins the point directly, untouched or misplayed by the receiving team",
-  SPIKE: "an attacking player jumping and hitting the ball forcefully downward over the net",
-  BLOCK: "one or more players jumping at the net with hands above the net to intercept and stop an opponent's attack right at the net",
+  SPIKE:
+    "an attacking player forcefully hitting a ball that was set up by their own teammate, sending it downward over the net into the opponent's court — the attack originates from their own team's play, not from stopping an incoming ball",
+  BLOCK:
+    "one or more defensive players jumping at the net with hands above the net to intercept an opponent's attack as it crosses toward them, redirecting the ball back down into the attacking team's court — this happens in direct response to an incoming attack from the other side, not as part of their own team's attacking sequence",
   DIG: "a defensive player, often in the back row, saving a hard-driven ball that has already passed the net/block, typically low to the ground",
   SET: "a player using a controlled overhead touch to position the ball for a teammate's attack",
   ASSIST: "a set or pass that directly leads to a teammate scoring the point",
@@ -76,9 +79,13 @@ function toImageBlock(frame: string) {
 }
 
 function describePlayer(playerContext: PlayerContext): string {
-  return playerContext.jerseyNumber
-    ? `the player wearing a ${playerContext.jerseyColor} jersey, number ${playerContext.jerseyNumber}`
-    : `the player wearing a ${playerContext.jerseyColor} jersey`;
+  const parts = [`the player wearing a ${playerContext.jerseyColor} jersey`];
+  if (playerContext.jerseyNumber) {
+    parts.push(`number ${playerContext.jerseyNumber}`);
+  }
+  const base = parts.join(", ");
+  // Soft probabilistic hint, not a rule — a Middle Blocker can still spike, etc.
+  return playerContext.position ? `${base}, whose team position is ${playerContext.position}` : base;
 }
 
 export async function suggestTags(frames: string[], playerContext: PlayerContext): Promise<TagSuggestion> {

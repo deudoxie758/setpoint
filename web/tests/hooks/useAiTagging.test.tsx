@@ -52,4 +52,36 @@ describe("useSuggestTags", () => {
       })
     );
   });
+
+  it("includes position in the request body when provided", async () => {
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ skill: "BLOCK", outcome: "POINT_WON", confidence: 0.85, rationale: "Blocked at the net." }),
+          { status: 200 }
+        )
+    ) as jest.Mock;
+
+    const { result } = renderHook(() => useSuggestTags(), { wrapper: createWrapper() });
+
+    result.current.mutate({
+      frames: ["data:image/jpeg;base64,AAA"],
+      jerseyColor: "red",
+      jerseyNumber: "5",
+      position: "Middle Blocker",
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/ai/suggest-tags"),
+      expect.objectContaining({
+        body: JSON.stringify({
+          frames: ["data:image/jpeg;base64,AAA"],
+          jerseyColor: "red",
+          jerseyNumber: "5",
+          position: "Middle Blocker",
+        }),
+      })
+    );
+  });
 });

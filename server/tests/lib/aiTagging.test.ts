@@ -91,6 +91,49 @@ describe("suggestTags", () => {
     expect(textBlock.text).toContain("back row");
   });
 
+  it("clarifies the directional distinction between SPIKE (own team's set) and BLOCK (intercepting an incoming attack)", async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        { type: "tool_use", input: { skill: "BLOCK", outcome: "POINT_WON", confidence: 0.9, rationale: "x" } },
+      ],
+    });
+
+    await suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "red", jerseyNumber: "5" });
+
+    const call = mockCreate.mock.calls[0][0];
+    const textBlock = call.messages[0].content.find((b: { type: string }) => b.type === "text");
+    expect(textBlock.text).toContain("set up by their own teammate");
+    expect(textBlock.text).toContain("incoming attack");
+  });
+
+  it("includes the player's team position in the prompt when provided", async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        { type: "tool_use", input: { skill: "BLOCK", outcome: "POINT_WON", confidence: 0.9, rationale: "x" } },
+      ],
+    });
+
+    await suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "red", jerseyNumber: "5", position: "Middle Blocker" });
+
+    const call = mockCreate.mock.calls[0][0];
+    const textBlock = call.messages[0].content.find((b: { type: string }) => b.type === "text");
+    expect(textBlock.text).toContain("Middle Blocker");
+  });
+
+  it("omits position from the prompt when not provided", async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        { type: "tool_use", input: { skill: "SERVE", outcome: "NO_POINT", confidence: 0.6, rationale: "x" } },
+      ],
+    });
+
+    await suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "white" });
+
+    const call = mockCreate.mock.calls[0][0];
+    const textBlock = call.messages[0].content.find((b: { type: string }) => b.type === "text");
+    expect(textBlock.text).not.toContain("team position is");
+  });
+
   it("includes the jersey color without a number when jerseyNumber is not provided", async () => {
     mockCreate.mockResolvedValue({
       content: [

@@ -31,11 +31,15 @@ export default function NewClipPage() {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ClipFormValues>({
     resolver: zodResolver(clipFormSchema),
     defaultValues: { sourceType: "LINK" },
   });
+
+  const selectedPlayerId = watch("playerId");
+  const selectedPlayerPosition = players?.find((p) => p.id === selectedPlayerId)?.position ?? undefined;
 
   async function onSubmit(values: ClipFormValues) {
     setSubmitError(null);
@@ -74,6 +78,7 @@ export default function NewClipPage() {
         frames,
         jerseyColor: jerseyColor.trim(),
         jerseyNumber: jerseyNumber.trim() || undefined,
+        position: selectedPlayerPosition,
       });
       setValue("skill", suggestion.skill);
       setValue("outcome", suggestion.outcome);

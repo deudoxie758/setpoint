@@ -24,7 +24,7 @@ describe("useSuggestTags", () => {
     jest.restoreAllMocks();
   });
 
-  it("POSTs the frames and returns the suggestion", async () => {
+  it("POSTs the frames plus jersey color/number and returns the suggestion", async () => {
     global.fetch = jest.fn(
       async () =>
         new Response(
@@ -35,7 +35,7 @@ describe("useSuggestTags", () => {
 
     const { result } = renderHook(() => useSuggestTags(), { wrapper: createWrapper() });
 
-    result.current.mutate(["data:image/jpeg;base64,AAA"]);
+    result.current.mutate({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", jerseyNumber: "7" });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({
@@ -46,7 +46,10 @@ describe("useSuggestTags", () => {
     });
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining("/ai/suggest-tags"),
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ frames: ["data:image/jpeg;base64,AAA"], jerseyColor: "white", jerseyNumber: "7" }),
+      })
     );
   });
 });

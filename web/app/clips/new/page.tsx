@@ -24,6 +24,8 @@ export default function NewClipPage() {
   const suggestTags = useSuggestTags();
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<{ confidence: number; rationale: string } | null>(null);
+  const [jerseyColor, setJerseyColor] = useState("");
+  const [jerseyNumber, setJerseyNumber] = useState("");
 
   const {
     register,
@@ -63,12 +65,16 @@ export default function NewClipPage() {
   }
 
   async function handleSuggestTags() {
-    if (!file) return;
+    if (!file || !jerseyColor.trim()) return;
     setAiError(null);
     setAiSuggestion(null);
     try {
       const frames = await captureFrames(file);
-      const suggestion = await suggestTags.mutateAsync(frames);
+      const suggestion = await suggestTags.mutateAsync({
+        frames,
+        jerseyColor: jerseyColor.trim(),
+        jerseyNumber: jerseyNumber.trim() || undefined,
+      });
       setValue("skill", suggestion.skill);
       setValue("outcome", suggestion.outcome);
       setAiSuggestion({ confidence: suggestion.confidence, rationale: suggestion.rationale });
@@ -134,14 +140,33 @@ export default function NewClipPage() {
               </p>
             )}
             {file && aiAvailable && (
-              <button
-                type="button"
-                onClick={handleSuggestTags}
-                disabled={suggestTags.isPending}
-                className="btn-ghost self-start text-sm"
-              >
-                {suggestTags.isPending ? "Analyzing…" : "Suggest tags with AI"}
-              </button>
+              <div className="flex flex-col gap-2 rounded-lg border border-white/10 p-3">
+                <div className="flex gap-2">
+                  <input
+                    value={jerseyColor}
+                    onChange={(e) => setJerseyColor(e.target.value)}
+                    placeholder="Jersey color (required for AI)"
+                    className="field flex-1 bg-slate-900 text-sm"
+                  />
+                  <input
+                    value={jerseyNumber}
+                    onChange={(e) => setJerseyNumber(e.target.value)}
+                    placeholder="Number (optional)"
+                    className="field w-32 bg-slate-900 text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSuggestTags}
+                  disabled={suggestTags.isPending || !jerseyColor.trim()}
+                  className="btn-ghost self-start text-sm"
+                >
+                  {suggestTags.isPending ? "Analyzing…" : "Suggest tags with AI"}
+                </button>
+                {!jerseyColor.trim() && (
+                  <p className="text-xs text-slate-500">Enter the jersey color above to enable AI suggestions.</p>
+                )}
+              </div>
             )}
             {aiSuggestion && (
               <p className="text-xs text-slate-400">

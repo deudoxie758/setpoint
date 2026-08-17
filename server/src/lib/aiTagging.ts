@@ -12,6 +12,11 @@ const suggestionSchema = z.object({
 
 export type TagSuggestion = z.infer<typeof suggestionSchema>;
 
+export interface PlayerContext {
+  jerseyColor: string;
+  jerseyNumber?: string;
+}
+
 const TAG_SUGGESTION_TOOL = {
   name: "suggest_tags",
   description: "Suggest the volleyball skill and point outcome shown across the provided video frames.",
@@ -44,7 +49,13 @@ function toImageBlock(frame: string) {
   };
 }
 
-export async function suggestTags(frames: string[]): Promise<TagSuggestion> {
+function describePlayer(playerContext: PlayerContext): string {
+  return playerContext.jerseyNumber
+    ? `the player wearing a ${playerContext.jerseyColor} jersey, number ${playerContext.jerseyNumber}`
+    : `the player wearing a ${playerContext.jerseyColor} jersey`;
+}
+
+export async function suggestTags(frames: string[], playerContext: PlayerContext): Promise<TagSuggestion> {
   const message = await getClient().messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 256,
@@ -59,8 +70,10 @@ export async function suggestTags(frames: string[]): Promise<TagSuggestion> {
             type: "text" as const,
             text:
               "These are frames sampled from a volleyball highlight clip, in chronological order — the last frame is closest to the end of the rally. " +
-              "Identify the skill being performed. For the point outcome, judge specifically by how the rally ends in the final frame " +
-              "(e.g. the ball being blocked, landing in or out of bounds, or the rally still in progress) rather than the general trajectory of the play.",
+              `Focus specifically on ${describePlayer(playerContext)}. Identify the skill that player performed. ` +
+              "For the point outcome, judge specifically how the rally ends in the final frame for that player's team " +
+              "(e.g. their attack landing for a point, their attack being blocked, their team winning the point on defense) " +
+              "rather than the general trajectory of the play.",
           },
         ],
       },

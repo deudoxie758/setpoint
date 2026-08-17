@@ -18,9 +18,15 @@ export function useAiStatus() {
   });
 }
 
+export interface SuggestTagsInput {
+  frames: string[];
+  jerseyColor: string;
+  jerseyNumber?: string;
+}
+
 export function useSuggestTags() {
   return useMutation({
-    mutationFn: (frames: string[]) =>
-      apiFetch<TagSuggestion>("/ai/suggest-tags", { method: "POST", body: JSON.stringify({ frames }) }),
+    mutationFn: (input: SuggestTagsInput) =>
+      apiFetch<TagSuggestion>("/ai/suggest-tags", { method: "POST", body: JSON.stringify(input) }),
   });
 }

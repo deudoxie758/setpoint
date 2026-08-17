@@ -28,7 +28,7 @@ describe("suggestTags", () => {
       ],
     });
 
-    const result = await suggestTags(["data:image/jpeg;base64,AAA"]);
+    const result = await suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "white" });
 
     expect(result).toEqual({
       skill: "SPIKE",
@@ -48,7 +48,7 @@ describe("suggestTags", () => {
       ],
     });
 
-    await suggestTags(["data:image/jpeg;base64,AAA", "data:image/jpeg;base64,BBB"]);
+    await suggestTags(["data:image/jpeg;base64,AAA", "data:image/jpeg;base64,BBB"], { jerseyColor: "white" });
 
     const call = mockCreate.mock.calls[0][0];
     const content = call.messages[0].content;
@@ -61,6 +61,36 @@ describe("suggestTags", () => {
     expect(content[2].type).toBe("text");
   });
 
+  it("includes the jersey color and number in the prompt when both are provided", async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        { type: "tool_use", input: { skill: "BLOCK", outcome: "POINT_WON", confidence: 0.9, rationale: "x" } },
+      ],
+    });
+
+    await suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "red", jerseyNumber: "7" });
+
+    const call = mockCreate.mock.calls[0][0];
+    const textBlock = call.messages[0].content.find((b: { type: string }) => b.type === "text");
+    expect(textBlock.text).toContain("red");
+    expect(textBlock.text).toContain("7");
+  });
+
+  it("includes the jersey color without a number when jerseyNumber is not provided", async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        { type: "tool_use", input: { skill: "SERVE", outcome: "NO_POINT", confidence: 0.6, rationale: "x" } },
+      ],
+    });
+
+    await suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "white" });
+
+    const call = mockCreate.mock.calls[0][0];
+    const textBlock = call.messages[0].content.find((b: { type: string }) => b.type === "text");
+    expect(textBlock.text).toContain("white");
+    expect(textBlock.text).not.toContain("number");
+  });
+
   it("throws when the model returns an out-of-enum skill", async () => {
     mockCreate.mockResolvedValue({
       content: [
@@ -71,12 +101,12 @@ describe("suggestTags", () => {
       ],
     });
 
-    await expect(suggestTags(["data:image/jpeg;base64,AAA"])).rejects.toThrow();
+    await expect(suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "white" })).rejects.toThrow();
   });
 
   it("throws when no tool_use block is present in the response", async () => {
     mockCreate.mockResolvedValue({ content: [{ type: "text", text: "I'm not sure." }] });
 
-    await expect(suggestTags(["data:image/jpeg;base64,AAA"])).rejects.toThrow();
+    await expect(suggestTags(["data:image/jpeg;base64,AAA"], { jerseyColor: "white" })).rejects.toThrow();
   });
 });

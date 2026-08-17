@@ -21,8 +21,8 @@ export async function captureFrames(file: File, count = 4): Promise<string[]> {
     }
 
     const frames: string[] = [];
-    for (let i = 1; i <= count; i++) {
-      video.currentTime = (video.duration * i) / (count + 1);
+    for (const timestamp of frameTimestamps(video.duration, count)) {
+      video.currentTime = timestamp;
       await waitForEvent(video, "seeked");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       frames.push(canvas.toDataURL("image/jpeg", 0.8));
@@ -32,6 +32,22 @@ export async function captureFrames(file: File, count = 4): Promise<string[]> {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+// A point's outcome is decided by how the rally ends, which evenly-spaced
+// sampling often misses (the ending action can land after the last evenly-spaced
+// frame). Earlier frames stay evenly spread for skill identification; the final
+// frame is pulled in close to the true end of the clip to capture that ending.
+function frameTimestamps(duration: number, count: number): number[] {
+  if (count === 1) {
+    return [duration * 0.95];
+  }
+  const timestamps: number[] = [];
+  for (let i = 1; i < count; i++) {
+    timestamps.push((duration * i * 0.8) / count);
+  }
+  timestamps.push(duration * 0.95);
+  return timestamps;
 }
 
 function waitForEvent(target: HTMLVideoElement, event: "loadedmetadata" | "seeked"): Promise<void> {

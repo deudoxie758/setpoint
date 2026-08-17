@@ -57,7 +57,10 @@ export async function suggestTags(frames: string[]): Promise<TagSuggestion> {
           ...frames.map(toImageBlock),
           {
             type: "text" as const,
-            text: "These are sampled frames from a volleyball highlight clip, in chronological order. Identify the skill being performed and the point outcome.",
+            text:
+              "These are frames sampled from a volleyball highlight clip, in chronological order — the last frame is closest to the end of the rally. " +
+              "Identify the skill being performed. For the point outcome, judge specifically by how the rally ends in the final frame " +
+              "(e.g. the ball being blocked, landing in or out of bounds, or the rally still in progress) rather than the general trajectory of the play.",
           },
         ],
       },

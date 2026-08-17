@@ -6,7 +6,7 @@ For the reasoning behind individual decisions (why Supabase over Neon+R2, why a 
 
 ## Architecture
 
-Two independently deployable pieces talking over plain HTTP, plus one managed data platform:
+Two independently deployable pieces talking over plain HTTP, plus two managed external services:
 
 ```
 ┌─────────────────────┐        REST/JSON        ┌──────────────────────┐
@@ -15,20 +15,28 @@ Two independently deployable pieces talking over plain HTTP, plus one managed da
 │  Tailwind             │                          │                      │
 └─────────┬────────────┘                          └──────────┬───────────┘
           │                                                     │
-          │  direct PUT to a                                    │  SQL
-          │  signed Storage URL                                 ▼
+          │  direct PUT to a                            SQL     │      images
+          │  signed Storage URL                                 ▼      │
           │  (upload flow only)                        ┌──────────────────┐
           └───────────────────────────────────────────▶│  Supabase          │
                                                           │  (Postgres +      │
                                                           │   Storage)         │
                                                           └──────────────────┘
+                                                                    │
+                                                          (server-side only)
+                                                                    ▼
+                                                          ┌──────────────────┐
+                                                          │  Anthropic API    │
+                                                          │  (Claude Haiku)   │
+                                                          └──────────────────┘
 ```
 
-- **`web/`** never talks to Postgres or Supabase Storage directly — every read and write goes through `server/`'s REST API via a single `apiFetch()` wrapper (`web/lib/apiClient.ts`). The one exception is the upload flow's final step, where the browser PUTs the video file straight to Supabase Storage using a signed URL the API handed it — the file bytes never pass through the Express server.
-- **`server/`** owns all data access through Prisma, validates every request with Zod, and is the only thing that knows the database connection string or the Supabase service-role key.
-- **Supabase** is used purely as infrastructure — a managed Postgres instance and an S3-compatible object store. Nothing SetPoint-specific runs inside Supabase (no edge functions, no RLS policies) — access control is "there is none," by design (see "No authentication" in `DECISIONS.md`).
+- **`web/`** never talks to Postgres, Supabase Storage, or Anthropic directly — every read and write goes through `server/`'s REST API via a single `apiFetch()` wrapper (`web/lib/apiClient.ts`). The one exception is the upload flow's final step, where the browser PUTs the video file straight to Supabase Storage using a signed URL the API handed it — the file bytes never pass through the Express server.
+- **`server/`** owns all data access through Prisma, validates every request with Zod, and is the only thing that knows the database connection string, the Supabase service-role key, or the Anthropic API key.
+- **Supabase** is infrastructure — a managed Postgres instance and an S3-compatible object store. Nothing SetPoint-specific runs inside Supabase (no edge functions, no RLS policies) — access control is "there is none," by design (see "No authentication" in `DECISIONS.md`). A real Supabase project is configured for this app (not just documented as a manual step) — uploads work end to end, not only in graceful-degradation mode.
+- **Anthropic** is called from exactly one place, `server/src/lib/aiTagging.ts`, for the AI tag-suggestion feature (see below). Both Supabase and Anthropic credentials are optional in `server/.env` — missing either degrades the relevant feature gracefully (a friendly error with Retry for uploads, a hidden button for AI suggestions) instead of crashing the server.
 
-This split exists so the two halves can be reasoned about, tested, and deployed independently — `server/` has its own test suite and can be exercised with nothing but `curl`, and `web/` never needs a real Supabase project to run its own tests.
+This split exists so the two halves can be reasoned about, tested, and deployed independently — `server/` has its own test suite and can be exercised with nothing but `curl`, and `web/` never needs a real Supabase or Anthropic project to run its own tests.
 
 ## Data model
 
@@ -39,7 +47,7 @@ Player  1 ──< Clip >── PlaylistClip ──< Playlist
 ```
 
 - **`Player`** — name, position, graduation year. A clip always belongs to exactly one player.
-- **`Clip`** — the core record. `sourceType` (`LINK` or `UPLOAD`) plus `url` describe where the video actually lives; `thumbnailUrl` is a separately-computed, cached preview image (see below). `skill` and `outcome` are fixed enums, not free text — `SERVE | ACE | SPIKE | BLOCK | DIG | SET | ASSIST` and `POINT_WON | POINT_LOST | NO_POINT` — chosen so filtering and the stats rollup can rely on a closed set of values instead of guessing at typo'd tags.
+- **`Clip`** — the core record. `sourceType` (`LINK` or `UPLOAD`) plus `url` describe where the video actually lives; `thumbnailUrl` is a separately-computed, cached preview image (see below). `skill` and `outcome` are fixed enums, not free text — `SERVE | ACE | SPIKE | BLOCK | DIG | SET | ASSIST` and `POINT_WON | POINT_LOST | NO_POINT` — chosen so filtering and the stats rollup can rely on a closed set of values instead of guessing at typo'd tags. `aiSuggested` / `aiConfidence` / `aiRationale` record whether a clip's tags came from an accepted AI suggestion (see "AI tag suggestions" below) — `aiSuggested` defaults to `false`, and the other two stay `null` for every manually-tagged clip.
 - **`Playlist`** — a named, shareable collection. `shareToken` is a separate unguessable field from `id` on purpose: the public `/share/:token` route never accepts or exposes the internal database id, so a leaked share link can't be walked to enumerate other playlists.
 - **`PlaylistClip`** — the join table between `Playlist` and `Clip`, with a `position` integer for ordering and a composite primary key on `(playlistId, clipId)` so a clip can't be added to the same playlist twice. Both foreign keys cascade on delete — deleting a playlist or a clip cleans up its join rows automatically, no orphaned rows to garbage-collect.
 
@@ -55,6 +63,26 @@ Player  1 ──< Clip >── PlaylistClip ──< Playlist
 - **Upload mode** — the coach picks a local file. `web/hooks/useUpload.ts` first asks the API for a signed upload URL (`POST /uploads/sign`), then PUTs the file directly to that URL via `XMLHttpRequest` (not `fetch`, specifically because `XMLHttpRequest` is what exposes upload-progress events) with a live percentage shown in the form. The API server's job here is only to mint the signed URL — it never sees the video bytes.
 
 Either way, the resulting `url` gets POSTed to `POST /clips` along with the player/skill/outcome/opponent/notes metadata, and the server computes a thumbnail (see below) before saving.
+
+### AI tag suggestions
+
+In Upload mode, once a file is picked, an optional **"Suggest tags with AI"** button appears — clicking it pre-fills the skill/outcome dropdowns from a vision model's read of the clip, so tagging a clip can start from a draft instead of a blank form. It's Upload-mode only: LINK-mode clips are a URL to a YouTube/Vimeo/Hudl page, and there's no video file in the browser to sample frames from.
+
+**The pipeline, end to end:**
+
+1. `web/lib/captureFrames.ts` samples 9 frames from the selected `File`, client-side, via a hidden `<video>` + `<canvas>` (`video.currentTime = ...`, wait for `seeked`, `ctx.drawImage`, `canvas.toDataURL("image/jpeg")`) — 6 spread across the first 75% of the clip (for skill identification, which needs to see the buildup) and 3 concentrated in the final 85–98% (for the outcome, which is decided by how the rally actually ends).
+2. Those frames, plus a required **jersey color** (and optional number) typed into the form, POST to `server/src/routes/ai.routes.ts`'s `POST /ai/suggest-tags`.
+3. `server/src/lib/aiTagging.ts` sends them to Claude Haiku 4.5 as a multi-image message, using tool-use (`tool_choice: { type: "tool", ... }`) to force a structured `{ skill, outcome, confidence, rationale }` response constrained to this app's actual `Skill`/`Outcome` enum values — not free text the server would have to hope parses correctly.
+4. The response is re-validated with `zod` before it ever reaches the client (defense in depth — the tool schema should already guarantee valid enum values, but nothing forces the model to honor it).
+5. The frontend pre-fills the dropdowns and shows the confidence + a one-line rationale under them, always followed by "please double-check" — nothing here auto-saves.
+
+**Why jersey color is mandatory, not optional:** the first version of this feature had no way to tell the model *which* player the clip was even about, so it just described whichever action looked most visually dominant — almost always the attacker, regardless of who the clip was actually being tagged for. Requiring jersey color (with the "Suggest tags with AI" button disabled until it's filled in) fixed that outright, and is one of the few genuinely load-bearing pieces of this feature — see the "AI tag suggestions" entries in `DECISIONS.md` for the full story of what was tried before landing on it.
+
+**Known limitation, by design, not oversight:** distinguishing a SPIKE from a BLOCK on a close net play stayed unreliable through seven distinct tuning attempts (frame density and timing, player/team attribution, explicit skill definitions, player-role hints) — see `DECISIONS.md` for the complete trail. The root cause is structural: telling the two apart requires seeing which direction the ball was traveling *before* contact (set up by the player's own team vs. an incoming attack being intercepted), which is motion information spread continuously across a fraction of a second — a handful of discrete JPEGs are a poor instrument for that specific fact, no matter how the prompt is written. Rather than keep chasing an accuracy ceiling the underlying approach can't reliably clear, the UI calls this out directly: whenever the suggested skill is SPIKE or BLOCK, an extra note tells the user this is the AI's known weak spot.
+
+**Provenance is saved, not just shown once.** `Clip.aiSuggested` / `aiConfidence` / `aiRationale` persist whether a saved clip's tags came from an accepted AI suggestion — but only if the skill/outcome actually submitted still match what the AI suggested (`web/app/clips/new/page.tsx` compares them at submit time). Edit either dropdown after suggesting and the clip saves as a normal manual tag, with no stale AI metadata attached to a value the AI didn't actually produce. The clip detail page shows a small "🤖 AI-tagged" badge with the confidence and rationale when it's set.
+
+**Graceful degradation, matching the Supabase pattern:** `ANTHROPIC_API_KEY` is optional in `server/.env` — with it unset, `GET /ai/status` reports unavailable and the "Suggest tags with AI" button never renders at all, rather than being shown and then failing.
 
 ### Thumbnails
 
@@ -104,16 +132,27 @@ Two patterns repeat across the whole app rather than being handled ad hoc per pa
 
 ## Testing
 
-- **Backend** — Jest + Supertest, one `describe` block per resource, run with `--runInBand` against a real local Postgres (via `docker-compose.yml`), not a mock. Every route's happy path, validation failures, and foreign-key edge cases (delete-with-dependents, reference-a-nonexistent-id) have a test.
-- **Frontend** — Jest + React Testing Library, deliberately scoped: the two pieces of frontend logic with real interaction/state (`FilterBar`, the playlist drag-reorder math) have full component/unit tests; the shared `apiClient`, `getEmbedUrl`, and `getThumbnailUrl`-equivalent helpers are tested directly; CRUD pages (players, clip forms, playlist list) are verified manually and via live browser checks rather than unit-tested, since they're mostly wiring a form to a mutation with little logic of their own to break.
+- **Backend** — Jest + Supertest, one `describe` block per resource, run with `--runInBand` against a real local Postgres (via `docker-compose.yml`), not a mock (64 tests). Every route's happy path, validation failures, and foreign-key edge cases (delete-with-dependents, reference-a-nonexistent-id) have a test. The Anthropic SDK is mocked at the module boundary (`server/tests/lib/aiTagging.test.ts`, `server/tests/ai.routes.test.ts`) — tests assert on the exact prompt content sent to the model (frame count, jersey/position context, glossary text), not just that a suggestion comes back.
+- **Frontend** — Jest + React Testing Library, deliberately scoped (36 tests): the pieces of frontend logic with real interaction/state (`FilterBar`, the playlist drag-reorder math, client-side video frame sampling) have full component/unit tests; the shared `apiClient`, `getEmbedUrl`, and AI-tagging hooks are tested directly; CRUD pages (players, clip forms, playlist list) are verified manually and via live browser checks rather than unit-tested, since they're mostly wiring a form to a mutation with little logic of their own to break. `web/tests/lib/captureFrames.test.ts` mocks `HTMLVideoElement`/`HTMLCanvasElement` (jsdom doesn't decode real video) to verify the frame-timestamp math without a real browser.
+- **`--runInBand` is required for the backend suite.** Tests share one local Postgres database rather than each getting an isolated instance — running them across Jest's default parallel workers causes real collisions (one test's `resetDb()` wiping another's in-flight fixtures). This is a known, accepted limitation of the current setup, not a bug to chase down; a project this size doesn't warrant a per-test-worker database.
 
 ## Local setup
 
 See `README.md` at the repo root for exact commands — `docker compose up`, `npm install`/`npm test`/`npm run dev` in both `server/` and `web/`. The short version: both halves need to be running (`server/` on `:4000`, `web/` on `:3000`) against the same local Postgres for the app to work end to end.
 
+## Known limitations
+
+- **AI tag suggestions can't reliably tell a SPIKE from a BLOCK on close net plays.** Covered in depth above and in `DECISIONS.md` — this is a structural limit of classifying discrete sampled frames rather than something left untuned. The UI flags it explicitly rather than hiding it.
+- **No authentication.** Everything is a single implicit workspace — deliberate, for portfolio scope (see `DECISIONS.md`), but the real gap before this could be used by an actual team. Anyone with the app URL can add, edit, or delete anything.
+- **No thumbnail for uploaded clips.** Uploaded videos get a placeholder tile, not a real preview frame — generating one means transcoding server-side or an image-transform service, not a client-side fix.
+- **Backend tests aren't parallel-safe.** They share one local Postgres rather than an isolated instance per worker, so the suite has to run with `--runInBand` (see Testing above).
+- **The clip-level jersey color/number aren't reusable.** They're typed in fresh for every AI suggestion request rather than remembered — deliberate (jerseys can differ by match), but there's no shortcut for a coach tagging many clips of the same player/game in one sitting.
+
 ## What I'd do with more time
 
-- **Authentication.** Everything today is a single implicit workspace — deliberate, for portfolio scope (see `DECISIONS.md`), but the first real gap for actual team use. Coach-scoped accounts and per-workspace data isolation would be the next architectural layer, not a bolt-on.
-- **Real thumbnails for uploaded clips.** Uploaded videos currently have no thumbnail at all (a placeholder tile) since generating one means either transcoding server-side or asking Supabase Storage for an image transform — both real infrastructure additions, not a quick win.
+- **A genuinely different approach to the SPIKE/BLOCK ambiguity.** Prompt tuning hit its ceiling (see `DECISIONS.md`); the two paths worth real investment are few-shot prompting with real labeled reference frames (needs a small curated, rights-clear example set — the one attempt here was blocked by unusable source footage, not the technique itself) or swapping frame-sampled stills for a video-native temporal model, which would mean a different vendor and a real `aiTagging.ts` re-architecture.
+- **Authentication.** Coach-scoped accounts and per-workspace data isolation would be the next architectural layer, not a bolt-on.
+- **Real thumbnails for uploaded clips.** Same reasoning as the limitation above — a real fix, not a quick one.
 - **Optimistic UI for the playlist reorder.** The drag interaction is currently "drop, then wait for the server to confirm" — fine at this scale, but a playlist with many clips would benefit from updating the local order immediately and rolling back only on a rejected `PATCH`.
 - **A richer stats surface.** The current rollup is one endpoint, one player, whole-season. A team-wide view, date-range filtering, or opponent-specific splits are natural next steps once there's more than a handful of demo clips to look at.
+- **Extending AI tagging beyond skill/outcome.** The model already sees the frames — a natural next step would be suggesting a short descriptive title or notes, scoped separately from skill/outcome since those are free-text rather than a fixed enum a vision model can reliably classify against.

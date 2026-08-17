@@ -52,7 +52,7 @@ describe("captureFrames", () => {
     jest.restoreAllMocks();
   });
 
-  it("captures 6 frames: 4 spread across the first 75% for skill ID, 2 concentrated in the final 85-98% window for the outcome", async () => {
+  it("captures 9 frames: 6 spread across the first 75% for skill ID, 3 concentrated in the final 85-98% window for the outcome", async () => {
     const file = new File(["data"], "clip.mp4", { type: "video/mp4" });
 
     const promise = captureFrames(file);
@@ -60,9 +60,19 @@ describe("captureFrames", () => {
 
     const frames = await promise;
 
-    expect(frames).toHaveLength(6);
+    expect(frames).toHaveLength(9);
     expect(frames.every((f) => f === "data:image/jpeg;base64,FAKE")).toBe(true);
-    expect(fakeVideo.seekedTimestamps).toEqual([1.875, 3.75, 5.625, 7.5, 9.15, 9.8]);
+
+    const timestamps = fakeVideo.seekedTimestamps;
+    expect(timestamps).toHaveLength(9);
+
+    const early = timestamps.slice(0, 6);
+    early.forEach((t, i) => expect(t).toBeCloseTo((10 * 0.75 * (i + 1)) / 6));
+
+    const late = timestamps.slice(6);
+    late.forEach((t) => expect(t).toBeGreaterThan(8.5));
+    late.forEach((t) => expect(t).toBeLessThanOrEqual(9.8));
+    expect(late[late.length - 1]).toBeCloseTo(9.8);
   });
 
   it("revokes the object URL when done", async () => {

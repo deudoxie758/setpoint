@@ -83,17 +83,17 @@ describe("AI tagging routes", () => {
         confidence: 0.8,
         rationale: "Jump and strike.",
       });
-      // ~50kb per frame x 6 frames, matching a real 640x480 JPEG data URI payload
-      const frames = Array(6).fill("data:image/jpeg;base64," + "A".repeat(50_000));
+      // ~50kb per frame x 9 frames, matching a real 640x480 JPEG data URI payload
+      const frames = Array(9).fill("data:image/jpeg;base64," + "A".repeat(50_000));
 
       const res = await request(createApp()).post("/ai/suggest-tags").send({ frames });
 
       expect(res.status).toBe(200);
     });
 
-    it("returns 400 when frames has more than 6 items", async () => {
+    it("returns 400 when frames has more than 9 items", async () => {
       config.anthropicApiKey = "test-key";
-      const frames = Array(7).fill("data:image/jpeg;base64,AAA");
+      const frames = Array(10).fill("data:image/jpeg;base64,AAA");
       const res = await request(createApp()).post("/ai/suggest-tags").send({ frames });
       expect(res.status).toBe(400);
     });

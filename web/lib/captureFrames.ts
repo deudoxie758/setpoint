@@ -1,4 +1,4 @@
-export async function captureFrames(file: File, count = 6): Promise<string[]> {
+export async function captureFrames(file: File, count = 9): Promise<string[]> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.muted = true;

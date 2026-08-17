@@ -6,7 +6,7 @@ import { suggestTags } from "../lib/aiTagging";
 
 const router = Router();
 
-const MAX_FRAMES = 4;
+const MAX_FRAMES = 6;
 const MAX_FRAME_LENGTH = 2_000_000;
 
 const suggestInput = z.object({

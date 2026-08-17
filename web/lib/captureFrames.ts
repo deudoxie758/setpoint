@@ -1,4 +1,4 @@
-export async function captureFrames(file: File, count = 4): Promise<string[]> {
+export async function captureFrames(file: File, count = 6): Promise<string[]> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.muted = true;
@@ -34,19 +34,33 @@ export async function captureFrames(file: File, count = 4): Promise<string[]> {
   }
 }
 
-// A point's outcome is decided by how the rally ends, which evenly-spaced
-// sampling often misses (the ending action can land after the last evenly-spaced
-// frame). Earlier frames stay evenly spread for skill identification; the final
-// frame is pulled in close to the true end of the clip to capture that ending.
+// A point's outcome is decided by a narrow window at the very end of a rally,
+// which sparse/evenly-spaced sampling often misses. Most frames stay spread
+// across the first EARLY_WINDOW_END_FRACTION of the clip for skill identification
+// (visible across a window of motion); the rest are concentrated in the
+// LATE_WINDOW_START_FRACTION-LATE_WINDOW_END_FRACTION window to raise the odds
+// of actually catching the point-ending instant.
+const EARLY_WINDOW_END_FRACTION = 0.75;
+const LATE_WINDOW_START_FRACTION = 0.85;
+const LATE_WINDOW_END_FRACTION = 0.98;
+const LATE_FRAME_SHARE = 0.3;
+
 function frameTimestamps(duration: number, count: number): number[] {
   if (count === 1) {
-    return [duration * 0.95];
+    return [duration * LATE_WINDOW_END_FRACTION];
   }
+
+  const lateCount = Math.max(1, Math.round(count * LATE_FRAME_SHARE));
+  const earlyCount = count - lateCount;
+  const lateSpan = LATE_WINDOW_END_FRACTION - LATE_WINDOW_START_FRACTION;
+
   const timestamps: number[] = [];
-  for (let i = 1; i < count; i++) {
-    timestamps.push((duration * i * 0.8) / count);
+  for (let i = 1; i <= earlyCount; i++) {
+    timestamps.push(duration * EARLY_WINDOW_END_FRACTION * (i / earlyCount));
   }
-  timestamps.push(duration * 0.95);
+  for (let i = 1; i <= lateCount; i++) {
+    timestamps.push(duration * (LATE_WINDOW_START_FRACTION + lateSpan * (i / lateCount)));
+  }
   return timestamps;
 }
 

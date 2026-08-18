@@ -65,3 +65,17 @@ export function useUpdateClip() {
     },
   });
 }
+
+export function useDeleteClip() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/clips/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clips"] });
+      // Deleting a clip changes its player's stats rollup, and the clip may
+      // still be referenced in cached playlist queries.
+      queryClient.invalidateQueries({ queryKey: ["players"] });
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    },
+  });
+}

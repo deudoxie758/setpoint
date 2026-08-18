@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useClips } from "@/hooks/useClips";
+import { useClips, useDeleteClip } from "@/hooks/useClips";
 import { usePlayers } from "@/hooks/usePlayers";
 import { usePlaylists, useAddClipsToPlaylist } from "@/hooks/usePlaylists";
 import { FilterBar } from "@/components/FilterBar";
@@ -16,11 +16,13 @@ export default function LibraryPage() {
   const [filters, setFilters] = useState<ClipFilters>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [targetPlaylistId, setTargetPlaylistId] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { data: players } = usePlayers();
   const { data: clips, isLoading } = useClips(filters);
   const { data: playlists } = usePlaylists();
   const addClips = useAddClipsToPlaylist();
+  const deleteClip = useDeleteClip();
 
   const selectedIds = useMemo(() => Array.from(selected), [selected]);
 
@@ -42,6 +44,17 @@ export default function LibraryPage() {
       { playlistId: targetPlaylistId, clipIds: selectedIds },
       { onSuccess: () => setSelected(new Set()) }
     );
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.length === 0) return;
+    setDeleteError(null);
+    try {
+      await Promise.all(selectedIds.map((id) => deleteClip.mutateAsync(id)));
+      setSelected(new Set());
+    } catch {
+      setDeleteError("Some clips could not be deleted.");
+    }
   }
 
   return (
@@ -77,8 +90,18 @@ export default function LibraryPage() {
           <button type="button" onClick={addSelectedToPlaylist} disabled={!targetPlaylistId} className="btn-ghost">
             Add to playlist
           </button>
+          <button
+            type="button"
+            onClick={deleteSelected}
+            disabled={deleteClip.isPending}
+            className="ml-auto text-sm text-rose-400 hover:text-rose-300"
+          >
+            Delete selected
+          </button>
         </div>
       )}
+
+      {deleteError && <p className="text-sm text-rose-400">{deleteError}</p>}
 
       {isLoading && <CardGridSkeleton />}
 

@@ -29,6 +29,14 @@ export function useCreatePlaylist() {
   });
 }
 
+export function useDeletePlaylist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/playlists/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
+  });
+}
+
 export function useAddClipsToPlaylist() {
   const queryClient = useQueryClient();
   return useMutation({

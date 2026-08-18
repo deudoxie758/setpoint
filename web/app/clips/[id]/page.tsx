@@ -1,23 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clipFormSchema, ClipFormValues } from "@/lib/schemas";
 import { SKILLS, OUTCOMES } from "@/lib/schemas";
-import { useClip, useUpdateClip } from "@/hooks/useClips";
+import { useClip, useUpdateClip, useDeleteClip } from "@/hooks/useClips";
 import { usePlayers } from "@/hooks/usePlayers";
 import { ApiClientError } from "@/lib/apiClient";
 import { getEmbedUrl } from "@/lib/embed";
 
 export default function ClipDetailPage({ params }: { params: { id: string } }) {
   const clipId = params.id;
+  const router = useRouter();
   const { data: clip, isLoading, isError, error } = useClip(clipId);
   const { data: players } = usePlayers();
   const updateClip = useUpdateClip();
+  const deleteClip = useDeleteClip();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const {
     register,
@@ -65,6 +69,14 @@ export default function ClipDetailPage({ params }: { params: { id: string } }) {
         onError: (err) => setSubmitError(err instanceof ApiClientError ? err.message : "Failed to save clip."),
       }
     );
+  }
+
+  function handleDelete() {
+    setDeleteError(null);
+    deleteClip.mutate(clipId, {
+      onSuccess: () => router.push("/"),
+      onError: (err) => setDeleteError(err instanceof ApiClientError ? err.message : "Failed to delete clip."),
+    });
   }
 
   if (isLoading) {
@@ -166,14 +178,23 @@ export default function ClipDetailPage({ params }: { params: { id: string } }) {
 
         {submitError && <p className="text-sm text-rose-400">{submitError}</p>}
         {saved && !updateClip.isPending && <p className="text-sm text-emerald-400">Saved.</p>}
+        {deleteError && <p className="text-sm text-rose-400">{deleteError}</p>}
 
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button type="submit" disabled={updateClip.isPending} className="btn-primary">
             Save changes
           </button>
           <Link href="/" className="btn-ghost">
             Back to library
           </Link>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleteClip.isPending}
+            className="ml-auto text-sm text-rose-400 hover:text-rose-300"
+          >
+            Delete clip
+          </button>
         </div>
       </form>
     </div>

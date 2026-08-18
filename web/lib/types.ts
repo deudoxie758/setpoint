@@ -1,13 +1,14 @@
-import { SOURCE_TYPES, SKILLS, OUTCOMES } from "@/lib/schemas";
+import { SOURCE_TYPES, SKILLS, OUTCOMES, POSITIONS } from "@/lib/schemas";
 
 export type SourceType = (typeof SOURCE_TYPES)[number];
 export type Skill = (typeof SKILLS)[number];
 export type Outcome = (typeof OUTCOMES)[number];
+export type Position = (typeof POSITIONS)[number];
 
 export interface Player {
   id: string;
   name: string;
-  position: string | null;
+  position: Position | null;
   graduationYear: number | null;
   createdAt: string;
 }

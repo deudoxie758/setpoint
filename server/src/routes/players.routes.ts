@@ -6,9 +6,18 @@ import { ApiError } from "../middleware/errorHandler";
 
 const router = Router();
 
+export const POSITIONS = [
+  "Libero",
+  "Middle Blocker",
+  "Right Side",
+  "Left Side",
+  "Setter",
+  "Defensive Specialist",
+] as const;
+
 const playerInput = z.object({
   name: z.string().min(1),
-  position: z.string().nullable().optional(),
+  position: z.enum(POSITIONS).nullable().optional(),
   graduationYear: z.number().int().nullable().optional(),
 });
 

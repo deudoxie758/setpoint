@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePlayers, useCreatePlayer, useUpdatePlayer, useDeletePlayer } from "@/hooks/usePlayers";
-import { playerFormSchema, PlayerFormValues } from "@/lib/schemas";
+import { playerFormSchema, PlayerFormValues, POSITIONS } from "@/lib/schemas";
 import { Player } from "@/lib/types";
 import { ApiClientError } from "@/lib/apiClient";
 import { ListSkeleton } from "@/components/Skeleton";
@@ -94,7 +94,14 @@ export default function PlayersPage() {
           <input {...register("name")} placeholder="Name" className="field bg-slate-900" />
           {errors.name && <p className="text-sm text-rose-400">{errors.name.message}</p>}
         </div>
-        <input {...register("position")} placeholder="Position" className="field bg-slate-900" />
+        <select {...register("position")} className="field bg-slate-900">
+          <option value="">Select position…</option>
+          {POSITIONS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
         <input
           {...register("graduationYear")}
           placeholder="Grad year"

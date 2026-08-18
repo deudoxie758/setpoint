@@ -11,6 +11,16 @@ describe("playerFormSchema", () => {
     expect(result.position).toBeUndefined();
   });
 
+  it("accepts a position from the fixed set", () => {
+    const result = playerFormSchema.safeParse({ name: "Jane Doe", position: "Setter" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a position outside the fixed set", () => {
+    const result = playerFormSchema.safeParse({ name: "Jane Doe", position: "Outside Hitter" });
+    expect(result.success).toBe(false);
+  });
+
   it("still coerces a real numeric string for graduationYear", () => {
     const result = playerFormSchema.parse({ name: "Jane Doe", graduationYear: "2027" });
     expect(result.graduationYear).toBe(2027);

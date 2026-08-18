@@ -12,7 +12,7 @@ describe("Players", () => {
   it("creates and lists players", async () => {
     const createRes = await request(app)
       .post("/players")
-      .send({ name: "Jane Doe", position: "Outside Hitter", graduationYear: 2027 });
+      .send({ name: "Jane Doe", position: "Left Side", graduationYear: 2027 });
 
     expect(createRes.status).toBe(201);
     expect(createRes.body.player.name).toBe("Jane Doe");
@@ -24,6 +24,13 @@ describe("Players", () => {
 
   it("returns 400 when name is missing", async () => {
     const res = await request(app).post("/players").send({ position: "Libero" });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when position is not one of the fixed set of positions", async () => {
+    const res = await request(app)
+      .post("/players")
+      .send({ name: "Jane Doe", position: "Outside Hitter" });
     expect(res.status).toBe(400);
   });
 

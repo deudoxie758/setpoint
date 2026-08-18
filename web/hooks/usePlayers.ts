@@ -2,11 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";
-import { Player, PlayerStats } from "@/lib/types";
+import { Player, PlayerStats, Position } from "@/lib/types";
 
 interface PlayerPayload {
   name: string;
-  position?: string | null;
+  position?: Position | null;
   graduationYear?: number | null;
 }
 

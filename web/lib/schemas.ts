@@ -4,9 +4,18 @@ function blankToUndefined(value: unknown) {
   return value === "" || value === undefined ? undefined : value;
 }
 
+export const POSITIONS = [
+  "Libero",
+  "Middle Blocker",
+  "Right Side",
+  "Left Side",
+  "Setter",
+  "Defensive Specialist",
+] as const;
+
 export const playerFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  position: z.preprocess(blankToUndefined, z.string().optional()),
+  position: z.preprocess(blankToUndefined, z.enum(POSITIONS).optional()),
   graduationYear: z.preprocess(blankToUndefined, z.coerce.number().int().optional()),
 });
 export type PlayerFormValues = z.infer<typeof playerFormSchema>;
